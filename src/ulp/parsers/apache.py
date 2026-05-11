@@ -30,7 +30,7 @@ class ApacheCommonParser(BaseParser):
         r'(?P<ident>\S+)\s+'           # Ident (usually -)
         r'(?P<user>\S+)\s+'            # Auth user (usually -)
         r'\[(?P<timestamp>[^\]]+)\]\s+' # Timestamp in brackets
-        r'"(?P<request>[^"]*)"\s+'     # Request line in quotes
+        r'"(?P<request>(?:[^"\\]|\\.)*)"\s+'  # Request line in quotes (escaped-quote safe)
         r'(?P<status>\d+)\s+'          # Status code
         r'(?P<size>\S+)'               # Response size (or -)
     )
@@ -113,6 +113,8 @@ class ApacheCommonParser(BaseParser):
         Parse HTTP request line.
 
         Example: "GET /path?query=value HTTP/1.1"
+        Handles paths with unencoded spaces by treating the last HTTP/-prefixed
+        token as the version and everything in between as the path.
         """
         parts = request.split()
         result: dict[str, str | None] = {
@@ -122,20 +124,25 @@ class ApacheCommonParser(BaseParser):
             "version": None,
         }
 
-        if len(parts) >= 1:
-            result["method"] = parts[0]
+        if not parts:
+            return result
+
+        result["method"] = parts[0]
 
         if len(parts) >= 2:
-            path_query = parts[1]
+            # Identify the version: last token starting with "HTTP/"
+            if len(parts) >= 3 and parts[-1].startswith("HTTP/"):
+                result["version"] = parts[-1]
+                path_query = " ".join(parts[1:-1])
+            else:
+                path_query = " ".join(parts[1:])
+
             if "?" in path_query:
                 path, query = path_query.split("?", 1)
                 result["path"] = path
                 result["query"] = query
             else:
                 result["path"] = path_query
-
-        if len(parts) >= 3:
-            result["version"] = parts[2]
 
         return result
 
@@ -173,11 +180,11 @@ class ApacheCombinedParser(ApacheCommonParser):
         r'(?P<ident>\S+)\s+'           # Ident (usually -)
         r'(?P<user>\S+)\s+'            # Auth user (usually -)
         r'\[(?P<timestamp>[^\]]+)\]\s+' # Timestamp in brackets
-        r'"(?P<request>[^"]*)"\s+'     # Request line in quotes
+        r'"(?P<request>(?:[^"\\]|\\.)*)"\s+'  # Request line in quotes (escaped-quote safe)
         r'(?P<status>\d+)\s+'          # Status code
         r'(?P<size>\S+)\s+'            # Response size (or -)
-        r'"(?P<referer>[^"]*)"\s+'     # Referer in quotes
-        r'"(?P<user_agent>[^"]*)"'     # User-Agent in quotes
+        r'"(?P<referer>(?:[^"\\]|\\.)*)"\s+'  # Referer in quotes (escaped-quote safe)
+        r'"(?P<user_agent>(?:[^"\\]|\\.)*)"'  # User-Agent in quotes (escaped-quote safe)
     )
 
     def parse_line(self, line: str) -> LogEntry:
@@ -244,7 +251,7 @@ class ApacheCombinedParser(ApacheCommonParser):
 
         # If Combined matches, return high confidence
         if combined_matches > 0:
-            return (combined_matches / len(sample)) * 1.1  # Slight boost over Common
+            return min(1.0, (combined_matches / len(sample)) * 1.1)  # Slight boost over Common, capped at 1.0
 
         # Fall back to Common format matching
         return super().can_parse(sample) * 0.9

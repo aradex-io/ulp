@@ -77,7 +77,8 @@ class NormalizationPipeline(NormalizerPort):
                 if self.stop_on_error:
                     raise
                 # On error, yield original entry with error marker
-                entry.metadata["normalization_error"] = str(e)
+                entry.extra["normalization_error"] = str(e)
+                entry.parse_errors.append(f"normalization: {e}")
                 yield entry
 
     def process_one(self, entry: LogEntry) -> LogEntry:

@@ -25,13 +25,16 @@ class PythonLoggingParser(BaseParser):
     name = "python_logging"
     supported_formats = ["python_logging", "python_default", "python"]
 
+    # Level alternation covers standard names plus WARN, NOTSET, FATAL aliases
+    _LEVEL_ALT = r'DEBUG|INFO|WARN(?:ING)?|ERROR|CRITICAL|NOTSET|FATAL'
+
     # Primary pattern: timestamp - name - level - message
     PATTERN_FULL = re.compile(
         r'^(?P<timestamp>\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}[,\.]\d{3})\s+'
         r'[-:]\s*'
         r'(?P<name>\S+)\s+'
         r'[-:]\s*'
-        r'(?P<level>DEBUG|INFO|WARNING|ERROR|CRITICAL)\s+'
+        r'(?P<level>' + _LEVEL_ALT + r')\s+'
         r'[-:]\s*'
         r'(?P<message>.*)'
     )
@@ -39,14 +42,14 @@ class PythonLoggingParser(BaseParser):
     # Alternate pattern: timestamp level name message
     PATTERN_ALT = re.compile(
         r'^(?P<timestamp>\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}[,\.]\d{3})\s+'
-        r'(?P<level>DEBUG|INFO|WARNING|ERROR|CRITICAL)\s+'
+        r'(?P<level>' + _LEVEL_ALT + r')\s+'
         r'(?P<name>\S+)\s+'
         r'(?P<message>.*)'
     )
 
     # Simple pattern: LEVEL:name:message
     PATTERN_SIMPLE = re.compile(
-        r'^(?P<level>DEBUG|INFO|WARNING|ERROR|CRITICAL):(?P<name>\S+):(?P<message>.*)'
+        r'^(?P<level>' + _LEVEL_ALT + r'):(?P<name>\S+):(?P<message>.*)'
     )
 
     # Pattern with thread info
@@ -55,7 +58,7 @@ class PythonLoggingParser(BaseParser):
         r'[-:]\s*'
         r'(?P<name>\S+)\s+'
         r'[-:]\s*'
-        r'(?P<level>DEBUG|INFO|WARNING|ERROR|CRITICAL)\s+'
+        r'(?P<level>' + _LEVEL_ALT + r')\s+'
         r'[-:]\s*'
         r'\[(?P<thread>[^\]]+)\]\s+'
         r'[-:]\s*'

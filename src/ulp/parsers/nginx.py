@@ -31,11 +31,11 @@ class NginxAccessParser(BaseParser):
         r'(?P<ident>\S+)\s+'             # Ident (usually -)
         r'(?P<user>\S+)\s+'              # Remote user
         r'\[(?P<timestamp>[^\]]+)\]\s+'  # Timestamp in brackets
-        r'"(?P<request>[^"]*)"\s+'       # Request line
+        r'"(?P<request>(?:[^"\\]|\\.)*)"\s+'  # Request line (escaped-quote safe)
         r'(?P<status>\d+)\s+'            # Status code
         r'(?P<size>\S+)'                 # Body bytes sent
-        r'(?:\s+"(?P<referer>[^"]*)"\s+' # Optional referer
-        r'"(?P<user_agent>[^"]*)")?'     # Optional user-agent
+        r'(?:\s+"(?P<referer>(?:[^"\\]|\\.)*)"\s+'  # Optional referer (escaped-quote safe)
+        r'"(?P<user_agent>(?:[^"\\]|\\.)*)")?'       # Optional user-agent (escaped-quote safe)
     )
 
     def parse_line(self, line: str) -> LogEntry:
@@ -115,7 +115,12 @@ class NginxAccessParser(BaseParser):
                 return None
 
     def _parse_request(self, request: str) -> dict[str, str | None]:
-        """Parse HTTP request line."""
+        """
+        Parse HTTP request line.
+
+        Handles paths with unencoded spaces by treating the last HTTP/-prefixed
+        token as the version and everything in between as the path.
+        """
         parts = request.split()
         result: dict[str, str | None] = {
             "method": None,
@@ -124,20 +129,25 @@ class NginxAccessParser(BaseParser):
             "version": None,
         }
 
-        if len(parts) >= 1:
-            result["method"] = parts[0]
+        if not parts:
+            return result
+
+        result["method"] = parts[0]
 
         if len(parts) >= 2:
-            path_query = parts[1]
+            # Identify the version: last token starting with "HTTP/"
+            if len(parts) >= 3 and parts[-1].startswith("HTTP/"):
+                result["version"] = parts[-1]
+                path_query = " ".join(parts[1:-1])
+            else:
+                path_query = " ".join(parts[1:])
+
             if "?" in path_query:
                 path, query = path_query.split("?", 1)
                 result["path"] = path
                 result["query"] = query
             else:
                 result["path"] = path_query
-
-        if len(parts) >= 3:
-            result["version"] = parts[2]
 
         return result
 

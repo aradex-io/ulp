@@ -10,6 +10,7 @@ from typing import Any
 
 from ulp.core.base import BaseParser
 from ulp.core.models import LogEntry, LogLevel
+from ulp.core.security import safe_json_loads, SecurityValidationError
 
 __all__ = ["DockerJSONParser", "DockerDaemonParser"]
 
@@ -37,10 +38,15 @@ class DockerJSONParser(BaseParser):
         entry.parser_name = self.name
 
         try:
-            data = json.loads(line.strip())
+            data = safe_json_loads(line.strip())
         except json.JSONDecodeError as e:
             entry.parse_errors.append(f"JSON decode error: {e}")
             entry.message = line
+            entry.parser_confidence = 0.0
+            return entry
+        except SecurityValidationError as e:
+            entry.parse_errors.append(f"JSON security validation failed: {e.message}")
+            entry.message = line[:200] + "..." if len(line) > 200 else line
             entry.parser_confidence = 0.0
             return entry
 
@@ -92,10 +98,10 @@ class DockerJSONParser(BaseParser):
                 continue
             if self.JSON_PATTERN.match(line):
                 try:
-                    data = json.loads(line)
+                    data = safe_json_loads(line)
                     if "log" in data and "stream" in data and "time" in data:
                         matches += 1
-                except json.JSONDecodeError:
+                except (json.JSONDecodeError, SecurityValidationError):
                     pass
 
         if not sample:
@@ -119,9 +125,11 @@ class DockerDaemonParser(BaseParser):
     name = "docker_daemon"
     supported_formats = ["docker_daemon", "dockerd"]
 
-    # Pattern for Docker daemon logs (logfmt-style)
+    # Pattern for Docker daemon logs (logfmt-style).
+    # The msg field uses ((?:[^"\\]|\\.)*) to handle escaped quotes inside the
+    # value; the captured string must be unescaped before use.
     DAEMON_PATTERN = re.compile(
-        r'^time="([^"]+)"\s+level=(\w+)\s+msg="([^"]*)"(.*)$'
+        r'^time="([^"]+)"\s+level=(\w+)\s+msg="((?:[^"\\]|\\.)*)"(.*)$'
     )
 
     # Alternative pattern for systemd journal format
@@ -150,6 +158,9 @@ class DockerDaemonParser(BaseParser):
     def _parse_logfmt(self, entry: LogEntry, match: re.Match) -> LogEntry:
         """Parse logfmt-style Docker daemon log."""
         timestamp_str, level_str, message, extra = match.groups()
+
+        # Unescape backslash sequences captured by the msg pattern
+        message = message.replace('\\"', '"').replace('\\\\', '\\')
 
         entry.format_detected = "docker_daemon"
         entry.parser_confidence = 1.0
