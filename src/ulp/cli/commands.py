@@ -69,6 +69,7 @@ def parse_command(
     quiet: bool,
     console: Console,
     error_console: Console,
+    ignore_case: bool = False,
 ) -> int:
     """
     Execute the parse command using application layer.
@@ -158,7 +159,7 @@ def parse_command(
     if grep:
         # M2: Validate regex pattern for security (length, syntax, ReDoS)
         try:
-            pattern = validate_regex_pattern(grep)
+            pattern = validate_regex_pattern(grep, ignore_case=ignore_case)
             all_entries = [e for e in all_entries if pattern.search(e.message)]
         except SecurityValidationError as e:
             error_console.print(f"[red]Regex validation failed:[/red] {e.message}")

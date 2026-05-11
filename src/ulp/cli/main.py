@@ -73,6 +73,10 @@ def cli(ctx: click.Context, quiet: bool) -> None:
     help="Filter entries by message content (regex)"
 )
 @click.option(
+    "--ignore-case", "-i", is_flag=True, default=False,
+    help="Case-insensitive --grep matching"
+)
+@click.option(
     "--normalize/--no-normalize", default=False,
     help="Apply normalization pipeline (timestamps to UTC, level normalization)"
 )
@@ -85,6 +89,7 @@ def parse(
     level: str | None,
     limit: int | None,
     grep: str | None,
+    ignore_case: bool,
     normalize: bool,
 ) -> None:
     """
@@ -112,6 +117,7 @@ def parse(
         level=level,
         limit=limit,
         grep=grep,
+        ignore_case=ignore_case,
         normalize=normalize,
         quiet=quiet,
         console=ctx.obj["console"],
