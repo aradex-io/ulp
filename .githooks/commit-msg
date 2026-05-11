@@ -1,0 +1,33 @@
+#!/bin/sh
+# Reject commits that contain Claude session links or AI co-authorship trailers.
+# This enforces the project policy that commit messages identify the human author
+# only and contain no automation-tool watermarks.
+#
+# To enable, run once from the repo root:
+#     git config core.hooksPath .githooks
+#
+# The check is intentionally conservative: it scans for the exact patterns we
+# want to keep out, not for general "AI-looking" text.
+
+msg_file="$1"
+
+if grep -qE 'https://claude\.ai/code/|https://claude\.com/code/' "$msg_file"; then
+    echo "ERROR: commit message contains a Claude session link." >&2
+    echo "       Remove all 'https://claude.ai/code/...' and" >&2
+    echo "       'https://claude.com/code/...' lines and try again." >&2
+    exit 1
+fi
+
+if grep -qiE '^Co-Authored-By:.*Claude' "$msg_file"; then
+    echo "ERROR: commit message contains a 'Co-Authored-By: Claude' trailer." >&2
+    echo "       Remove the trailer and try again." >&2
+    exit 1
+fi
+
+if grep -qE '🤖 Generated with' "$msg_file"; then
+    echo "ERROR: commit message contains an AI-generation marker." >&2
+    echo "       Remove the marker line and try again." >&2
+    exit 1
+fi
+
+exit 0
