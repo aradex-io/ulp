@@ -9,7 +9,7 @@ Provides three strategies for correlating log entries:
 
 import warnings
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Iterator
 from uuid import uuid4
 
@@ -22,20 +22,6 @@ __all__ = [
     "TimestampWindowCorrelation",
     "SessionCorrelation",
 ]
-
-
-def _normalize_ts(ts: datetime | None) -> datetime:
-    """Project a timestamp into a comparable UTC-aware form.
-
-    Used only for sort keys and timedelta arithmetic so that mixed
-    naive/aware sources do not raise TypeError. The caller's stored
-    timestamp is never mutated.
-    """
-    if ts is None:
-        return datetime.min.replace(tzinfo=timezone.utc)
-    if ts.tzinfo is None:
-        return ts.replace(tzinfo=timezone.utc)
-    return ts
 
 
 class RequestIdCorrelation(CorrelationStrategy):
@@ -166,11 +152,11 @@ class RequestIdCorrelation(CorrelationStrategy):
         entries: list[LogEntry]
     ) -> CorrelationGroup:
         """Create a CorrelationGroup from entries."""
-        # Calculate time range (use _normalize_ts as sort key so mixed naive/aware sources don't crash)
+        # Calculate time range
         timestamps = [e.timestamp for e in entries if e.timestamp]
         time_range = None
         if timestamps:
-            time_range = (min(timestamps, key=_normalize_ts), max(timestamps, key=_normalize_ts))
+            time_range = (min(timestamps), max(timestamps))
 
         # Collect unique sources
         sources = {e.source.file_path or "<unknown>" for e in entries}
@@ -249,12 +235,11 @@ class TimestampWindowCorrelation(CorrelationStrategy):
             if entry.timestamp is None:
                 continue  # Skip entries without timestamps
 
-            entry_ts_norm = _normalize_ts(entry.timestamp)
             if window_start is None:
                 # Start new window
-                window_start = entry_ts_norm
+                window_start = entry.timestamp
                 current_window = [entry]
-            elif entry_ts_norm - window_start <= self.window:
+            elif entry.timestamp - window_start <= self.window:
                 # Entry within window
                 current_window.append(entry)
             else:
@@ -263,7 +248,7 @@ class TimestampWindowCorrelation(CorrelationStrategy):
                 if group:
                     yield group
 
-                window_start = entry_ts_norm
+                window_start = entry.timestamp
                 current_window = [entry]
 
             # Memory safety: emit if buffer too large
@@ -294,10 +279,7 @@ class TimestampWindowCorrelation(CorrelationStrategy):
             return None
 
         timestamps = [e.timestamp for e in entries if e.timestamp]
-        time_range = (
-            (min(timestamps, key=_normalize_ts), max(timestamps, key=_normalize_ts))
-            if timestamps else None
-        )
+        time_range = (min(timestamps), max(timestamps)) if timestamps else None
 
         # Use time range as correlation key
         key = f"{time_range[0].isoformat()}" if time_range else str(uuid4())
@@ -396,11 +378,11 @@ class SessionCorrelation(CorrelationStrategy):
 
             session_entries, last_ts = sessions[session_key]
 
-            # Check for session timeout (normalize tz so mixed naive/aware sources don't crash)
+            # Check for session timeout
             if (
                 last_ts and
                 entry.timestamp and
-                _normalize_ts(entry.timestamp) - _normalize_ts(last_ts) > self.session_timeout
+                entry.timestamp - last_ts > self.session_timeout
             ):
                 # Emit old session, start new
                 if len(session_entries) >= 2:
@@ -438,10 +420,7 @@ class SessionCorrelation(CorrelationStrategy):
     ) -> CorrelationGroup:
         """Create a session group."""
         timestamps = [e.timestamp for e in entries if e.timestamp]
-        time_range = (
-            (min(timestamps, key=_normalize_ts), max(timestamps, key=_normalize_ts))
-            if timestamps else None
-        )
+        time_range = (min(timestamps), max(timestamps)) if timestamps else None
         sources = {e.source.file_path or "<unknown>" for e in entries}
 
         return CorrelationGroup(

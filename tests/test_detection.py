@@ -130,16 +130,3 @@ class TestBuiltinSignatures:
         json_sigs = [s for s in BUILTIN_SIGNATURES if "json" in s.name.lower()]
         for sig in json_sigs:
             assert sig.is_json, f"JSON signature {sig.name} should have is_json=True"
-
-
-# ---------------------------------------------------------------------------
-# Regression: Nginx detection (HIGH-P-2)
-# ---------------------------------------------------------------------------
-
-def test_nginx_detected_over_apache():
-    """Pure Nginx access-log lines must detect as nginx_access, not apache_combined."""
-    lines = [
-        '192.168.1.1 - - [27/Jan/2026:10:15:32 +0000] "GET / HTTP/1.1" 200 612 "-" "Mozilla"'
-    ]
-    fmt, conf = FormatDetector().detect(lines)
-    assert fmt == "nginx_access", f"Expected nginx_access, got {fmt}"

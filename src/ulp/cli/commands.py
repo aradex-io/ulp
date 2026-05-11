@@ -69,7 +69,6 @@ def parse_command(
     quiet: bool,
     console: Console,
     error_console: Console,
-    ignore_case: bool = False,
 ) -> int:
     """
     Execute the parse command using application layer.
@@ -90,7 +89,6 @@ def parse_command(
         ])
 
     all_entries: list[LogEntry] = []
-    had_failure = False
 
     # Handle stdin
     if not files:
@@ -141,31 +139,26 @@ def parse_command(
 
             except FileNotFoundError as e:
                 error_console.print(f"[red]Error:[/red] {e}")
-                had_failure = True
                 continue
             except ValueError as e:
                 error_console.print(f"[red]Parse error in {file_path}:[/red] {e}")
-                had_failure = True
                 continue
-
-    if had_failure and not all_entries:
-        return 1
 
     # Apply filters
     if level:
-        min_level = LogLevel.from_string(level.lower())
+        min_level = LogLevel.from_string(level)
         all_entries = [e for e in all_entries if e.level >= min_level]
 
     if grep:
         # M2: Validate regex pattern for security (length, syntax, ReDoS)
         try:
-            pattern = validate_regex_pattern(grep, ignore_case=ignore_case)
+            pattern = validate_regex_pattern(grep)
             all_entries = [e for e in all_entries if pattern.search(e.message)]
         except SecurityValidationError as e:
             error_console.print(f"[red]Regex validation failed:[/red] {e.message}")
             return 1
 
-    if limit is not None:
+    if limit:
         all_entries = all_entries[:limit]
 
     # Render output
@@ -327,25 +320,21 @@ def stream_command(
     """
     from ulp.application.parse_logs import ParseLogsStreamingUseCase
     from ulp.infrastructure import ChunkedFileStreamSource
-    from ulp.infrastructure.sources.stdin_source import StdinStreamSource
 
     try:
-        # Use chunked source with progress tracking (or stdin when file_path is "-")
+        # Use chunked source with progress tracking
         def on_progress(bytes_read: int, total_bytes: int, lines: int) -> None:
             if progress:
                 pct = bytes_read / total_bytes * 100
-                error_console.print(
+                console.print(
                     f"\r[dim]Progress: {pct:.1f}% ({lines:,} lines)[/dim]",
                     end=""
                 )
 
-        if file_path == "-":
-            source = StdinStreamSource()
-        else:
-            source = ChunkedFileStreamSource(
-                file_path,
-                progress_callback=on_progress if progress else None,
-            )
+        source = ChunkedFileStreamSource(
+            file_path,
+            progress_callback=on_progress if progress else None,
+        )
 
         registry = ParserRegistryAdapter()
         use_case = ParseLogsStreamingUseCase(
@@ -368,8 +357,8 @@ def stream_command(
             count += 1
 
         if progress:
-            error_console.print()  # Newline after progress
-            error_console.print(f"[green]Processed {count:,} entries[/green]")
+            console.print()  # Newline after progress
+            console.print(f"[green]Processed {count:,} entries[/green]")
 
         return 0
 

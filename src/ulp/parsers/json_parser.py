@@ -7,7 +7,7 @@ from typing import Any
 
 from ulp.core.base import BaseParser
 from ulp.core.models import LogEntry, LogLevel, CorrelationIds, LogSource
-from ulp.core.security import safe_json_loads, SecurityValidationError
+from ulp.core.security import validate_json_depth, SecurityValidationError
 
 __all__ = ["JSONParser"]
 
@@ -46,22 +46,26 @@ class JSONParser(BaseParser):
         entry.parser_name = self.name
 
         try:
-            data = safe_json_loads(line.strip())
+            data = json.loads(line.strip())
         except json.JSONDecodeError as e:
             entry.parse_errors.append(f"JSON decode error: {e}")
             entry.message = line
             entry.parser_confidence = 0.0
-            return entry
-        except SecurityValidationError as e:
-            entry.parse_errors.append(f"JSON security validation failed: {e.message}")
-            entry.message = line[:200] + "..." if len(line) > 200 else line
-            entry.parser_confidence = 0.1
             return entry
 
         if not isinstance(data, dict):
             entry.parse_errors.append("JSON is not an object")
             entry.message = str(data)
             entry.parser_confidence = 0.3
+            return entry
+
+        # H4: Validate JSON depth to prevent stack overflow
+        try:
+            validate_json_depth(data)
+        except SecurityValidationError as e:
+            entry.parse_errors.append(f"JSON security validation failed: {e.message}")
+            entry.message = line[:200] + "..." if len(line) > 200 else line
+            entry.parser_confidence = 0.1
             return entry
 
         entry.format_detected = "json_structured"
