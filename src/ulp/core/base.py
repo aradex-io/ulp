@@ -16,9 +16,11 @@ __all__ = ["BaseParser"]
 
 # Common timestamp formats to try
 TIMESTAMP_FORMATS = [
-    # ISO 8601 variants (no literal-Z formats; Z is pre-substituted to +00:00 before strptime)
+    # ISO 8601 variants
+    "%Y-%m-%dT%H:%M:%S.%fZ",
     "%Y-%m-%dT%H:%M:%S.%f%z",
     "%Y-%m-%dT%H:%M:%S%z",
+    "%Y-%m-%dT%H:%M:%SZ",
     "%Y-%m-%dT%H:%M:%S",
     # Common log formats
     "%Y-%m-%d %H:%M:%S.%f",
@@ -121,11 +123,6 @@ class BaseParser(ABC):
             return None
 
         value = value.strip()
-
-        # Pre-substitute trailing Z to +00:00 so strptime produces an aware datetime.
-        # Python 3.10 strptime does not support literal "Z" in format strings.
-        if value.endswith("Z") and len(value) > 1:
-            value = value[:-1] + "+00:00"
 
         # Try explicit formats first (faster)
         for fmt in TIMESTAMP_FORMATS:
