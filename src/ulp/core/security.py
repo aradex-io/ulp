@@ -30,6 +30,9 @@ __all__ = [
     "validate_regex_pattern",
     "sanitize_csv_cell",
     "check_symlink",
+    # Safe JSON helpers
+    "_scan_max_depth",
+    "safe_json_loads",
 ]
 
 
@@ -120,6 +123,11 @@ def validate_json_depth(data: Any, max_depth: int = MAX_JSON_DEPTH, current_dept
     """
     Check if JSON data exceeds maximum nesting depth.
 
+    .. deprecated::
+        Prefer :func:`safe_json_loads` for new code — it performs the depth
+        check *before* calling ``json.loads``, preventing C-stack overflow on
+        deeply nested input.
+
     Args:
         data: Parsed JSON data to check
         max_depth: Maximum allowed nesting depth
@@ -148,7 +156,7 @@ def validate_json_depth(data: Any, max_depth: int = MAX_JSON_DEPTH, current_dept
     return True
 
 
-def validate_regex_pattern(pattern: str, max_length: int = 1000) -> re.Pattern:
+def validate_regex_pattern(pattern: str, max_length: int = 1000, ignore_case: bool = False) -> re.Pattern:
     """
     Validate and compile a regex pattern safely.
 
@@ -160,6 +168,9 @@ def validate_regex_pattern(pattern: str, max_length: int = 1000) -> re.Pattern:
     Args:
         pattern: Regex pattern string
         max_length: Maximum pattern length
+        ignore_case: If True, compile with re.IGNORECASE.  Defaults to False
+            (case-sensitive).  Callers may pass True to replicate the previous
+            implicit behaviour or to honour a user ``--ignore-case`` flag.
 
     Returns:
         Compiled regex pattern
@@ -174,33 +185,106 @@ def validate_regex_pattern(pattern: str, max_length: int = 1000) -> re.Pattern:
             validation_type="regex_length",
         )
 
-    # Basic ReDoS pattern detection - look for nested quantifiers
-    # This is a heuristic, not comprehensive
+    # Basic ReDoS pattern detection - look for nested quantifiers.
+    # This is a heuristic, intentionally aggressive for safety; legitimate
+    # complex patterns should be simplified or submitted via a different path.
     dangerous_patterns = [
         r"\(\?.*\+.*\+",  # Nested + quantifiers in group
         r"\(\?.*\*.*\*",  # Nested * quantifiers in group
         r"\([^)]*\+\)[^)]*\+",  # (a+)+ pattern
         r"\([^)]*\*\)[^)]*\*",  # (a*)* pattern
+        # Extended ReDoS heuristics (HIGH-S-2)
+        r'\([^)]*\\w[\*\+][^)]*\)[\*\+]',   # (\w+)+ or similar
+        r'\([^)]*\|[^)]*\)[\*\+]',           # any alternation followed by quantifier
+        r'\(\[[^\]]+\][\*\+]\)[\*\+]',       # ([a-z]+)+
     ]
 
     for dangerous in dangerous_patterns:
         if re.search(dangerous, pattern):
             raise SecurityValidationError(
-                "Regex pattern contains potentially dangerous nested quantifiers. "
-                "Please simplify the pattern.",
+                "Regex pattern contains potentially dangerous nested quantifiers "
+                "or alternation. Please simplify the pattern.",
                 validation_type="regex_redos",
                 details={"pattern_preview": pattern[:100]},
             )
 
     # Try to compile
+    flags = re.IGNORECASE if ignore_case else 0
     try:
-        return re.compile(pattern, re.IGNORECASE)
+        return re.compile(pattern, flags)
     except re.error as e:
         raise SecurityValidationError(
             f"Invalid regex pattern: {e}",
             validation_type="regex_syntax",
             details={"error": str(e)},
         )
+
+
+def _scan_max_depth(s: str, max_depth: int = MAX_JSON_DEPTH) -> int:
+    """Return max nesting depth in a JSON string by counting bracket characters.
+
+    Skips characters inside JSON string literals so brackets inside strings
+    don't inflate the count.  Returns immediately if *max_depth* is exceeded.
+    """
+    depth = 0
+    max_seen = 0
+    in_string = False
+    escape = False
+    for ch in s:
+        if escape:
+            escape = False
+            continue
+        if ch == "\\":
+            escape = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if ch == "{" or ch == "[":
+            depth += 1
+            if depth > max_seen:
+                max_seen = depth
+            if depth > max_depth:
+                return depth
+        elif ch == "}" or ch == "]":
+            depth -= 1
+    return max_seen
+
+
+def safe_json_loads(s: str, max_depth: int = MAX_JSON_DEPTH):
+    """json.loads with a pre-parse depth check to prevent C-stack overflow.
+
+    CPython's ``json.loads`` is implemented as a recursive C function.
+    Deeply nested input can blow the C stack and crash the process before
+    any Python-level guard can run.  This helper performs an O(n) bracket
+    scan *first*, raising :class:`SecurityValidationError` when the nesting
+    depth exceeds *max_depth*, and only then delegates to ``json.loads``.
+
+    Prefer this over ``json.loads`` + :func:`validate_json_depth` for all
+    new call sites.
+
+    Args:
+        s: Raw JSON string to parse.
+        max_depth: Maximum allowed nesting depth (default: ``MAX_JSON_DEPTH``).
+
+    Returns:
+        Parsed Python object.
+
+    Raises:
+        SecurityValidationError: If nesting depth exceeds *max_depth*.
+        json.JSONDecodeError: If the string is not valid JSON.
+    """
+    import json
+    seen = _scan_max_depth(s, max_depth=max_depth)
+    if seen > max_depth:
+        raise SecurityValidationError(
+            f"JSON nesting depth ({seen}) exceeds maximum ({max_depth})",
+            validation_type="json_depth",
+            details={"depth": seen, "max_depth": max_depth},
+        )
+    return json.loads(s)
 
 
 def sanitize_csv_cell(value: str) -> str:

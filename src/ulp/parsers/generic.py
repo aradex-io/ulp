@@ -36,10 +36,10 @@ class GenericParser(BaseParser):
         (r'^(\d{2}/\d{2}/\d{4}\s+\d{2}:\d{2}:\d{2})\s*', "%m/%d/%Y %H:%M:%S"),
         # Time only
         (r'^(\d{2}:\d{2}:\d{2}(?:\.\d+)?)\s*', "%H:%M:%S"),
-        # Unix timestamp (seconds)
-        (r'^(\d{10})\s*', "unix"),
-        # Unix timestamp (milliseconds)
+        # Unix timestamp (milliseconds) - must come before 10-digit to avoid prefix match
         (r'^(\d{13})\s*', "unix_ms"),
+        # Unix timestamp (seconds) - non-digit lookahead prevents matching 13-digit timestamps
+        (r'^(\d{10})(?!\d)\s*', "unix"),
     ]
 
     # Compile patterns

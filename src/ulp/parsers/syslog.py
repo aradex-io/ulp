@@ -107,16 +107,17 @@ class SyslogRFC3164Parser(BaseParser):
         return entry
 
     def can_parse(self, sample: list[str]) -> float:
-        """Determine confidence for parsing RFC 3164 logs."""
+        """Determine confidence for parsing RFC 3164 logs.
+
+        Uses only the primary PATTERN (which requires a tag-like token) for
+        detection confidence, to avoid over-matching non-syslog lines that
+        happen to start with a month abbreviation (PATTERN_ALT is kept for
+        permissive parsing in parse_line but is too broad for detection).
+        """
         if not sample:
             return 0.0
 
-        matches = 0
-        for line in sample:
-            line = line.strip()
-            if self.PATTERN.match(line) or self.PATTERN_ALT.match(line):
-                matches += 1
-
+        matches = sum(1 for line in sample if self.PATTERN.match(line.strip()))
         return matches / len(sample)
 
     def _parse_bsd_timestamp(self, ts: str) -> datetime | None:
@@ -126,10 +127,14 @@ class SyslogRFC3164Parser(BaseParser):
         Format: "Oct 11 22:14:15" (no year)
         """
         try:
-            # Add current year
-            current_year = datetime.now().year
+            now = datetime.now()
+            current_year = now.year
             ts_with_year = f"{ts} {current_year}"
-            return datetime.strptime(ts_with_year, "%b %d %H:%M:%S %Y")
+            parsed = datetime.strptime(ts_with_year, "%b %d %H:%M:%S %Y")
+            # Handle year rollover: a December log read in May belongs to the previous year
+            if parsed.month > now.month + 1:
+                parsed = parsed.replace(year=current_year - 1)
+            return parsed
         except ValueError:
             return None
 
@@ -149,6 +154,7 @@ class SyslogRFC5424Parser(BaseParser):
     supported_formats = ["syslog_rfc5424"]
 
     # RFC 5424 pattern
+    # SD field uses a quote-aware bracketed pattern to handle ] inside quoted values
     PATTERN = re.compile(
         r'^<(?P<pri>\d{1,3})>(?P<version>\d+)\s+'           # Priority and version
         r'(?P<timestamp>\S+)\s+'                            # ISO timestamp or NILVALUE
@@ -156,7 +162,7 @@ class SyslogRFC5424Parser(BaseParser):
         r'(?P<appname>\S+)\s+'                              # App name
         r'(?P<procid>\S+)\s+'                               # Process ID
         r'(?P<msgid>\S+)\s+'                                # Message ID
-        r'(?P<sd>-|\[.*?\](?:\s*\[.*?\])*)\s*'             # Structured data
+        r'(?P<sd>-|(?:\[(?:[^\]"\\]|"(?:[^"\\]|\\.)*"|\\.)*\])+)\s*'  # Structured data (quote-aware)
         r'(?P<message>.*)?'                                 # Message (optional)
     )
 
@@ -236,18 +242,24 @@ class SyslogRFC5424Parser(BaseParser):
                     return "ms"
         return "s"
 
+    # Compiled SD patterns (hoisted to class level to avoid re-compiling per line)
+    _SD_ELEMENT_PATTERN = re.compile(
+        r'\[(?P<block>(?:[^\]"\\]|"(?:[^"\\]|\\.)*"|\\.)*)\]'
+    )
+    _SD_PARAM_PATTERN = re.compile(r'(\S+)="((?:[^"\\]|\\.)*)"')
+
     def _parse_structured_data(self, sd: str) -> dict:
         """
         Parse RFC 5424 structured data.
 
         Format: [sdid param="value" param2="value2"][sdid2 ...]
+        Handles escaped quotes (\") and escaped backslashes (\\) inside param values.
         """
         result = {}
 
-        # Find all SD-ELEMENT blocks
-        sd_pattern = re.compile(r'\[([^\]]+)\]')
-        for match in sd_pattern.finditer(sd):
-            block = match.group(1)
+        # Find all SD-ELEMENT blocks using quote-aware pattern
+        for match in self._SD_ELEMENT_PATTERN.finditer(sd):
+            block = match.group("block")
             parts = block.split(None, 1)
 
             if len(parts) >= 1:
@@ -255,10 +267,13 @@ class SyslogRFC5424Parser(BaseParser):
                 params = {}
 
                 if len(parts) > 1:
-                    # Parse parameters
-                    param_pattern = re.compile(r'(\S+)="([^"]*)"')
-                    for param_match in param_pattern.finditer(parts[1]):
-                        params[param_match.group(1)] = param_match.group(2)
+                    # Parse parameters, handling escaped quotes inside values
+                    for param_match in self._SD_PARAM_PATTERN.finditer(parts[1]):
+                        key = param_match.group(1)
+                        raw_val = param_match.group(2)
+                        # Unescape RFC 5424 escape sequences
+                        val = raw_val.replace('\\"', '"').replace('\\\\', '\\').replace('\\]', ']')
+                        params[key] = val
 
                 result[sd_id] = params
 

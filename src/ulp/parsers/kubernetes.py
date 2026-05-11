@@ -14,6 +14,7 @@ from datetime import datetime
 
 from ulp.core.base import BaseParser
 from ulp.core.models import LogEntry, LogLevel, CorrelationIds
+from ulp.core.security import safe_json_loads, SecurityValidationError
 
 __all__ = [
     "KubernetesContainerParser",
@@ -39,9 +40,18 @@ class KubernetesContainerParser(BaseParser):
     name = "kubernetes_container"
     supported_formats = ["kubernetes_container", "kubectl_logs", "k8s_container"]
 
-    # Pattern for kubectl logs with timestamp prefix
+    # Pattern for CRI-O / containerd container log lines (default since k8s 1.24).
+    # Handles optional sub-second precision and the optional stream/partial-flag prefix.
+    # Group 1: timestamp, Group 2: message (stream+flag prefix stripped).
+    # The stream (stdout/stderr) and partial flag (F/P) are captured separately
+    # via STREAM_PATTERN when present, and stored in entry.extra.
     TIMESTAMPED_PATTERN = re.compile(
-        r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z)\s+(.*)$'
+        r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)\s+(?:(?:stdout|stderr)\s+[FP]\s+)?(.*)$'
+    )
+
+    # Captures stream and partial flag when present (for extra metadata)
+    _STREAM_PATTERN = re.compile(
+        r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)\s+(stdout|stderr)\s+([FP])\s+(.*)$'
     )
 
     def __init__(self):
@@ -58,14 +68,22 @@ class KubernetesContainerParser(BaseParser):
 
         stripped = line.strip()
 
-        # Try to extract timestamp prefix
-        match = self.TIMESTAMPED_PATTERN.match(stripped)
-        if match:
-            timestamp_str, content = match.groups()
+        # Try to extract timestamp prefix (and optional stream/partial-flag metadata)
+        stream_match = self._STREAM_PATTERN.match(stripped)
+        if stream_match:
+            timestamp_str, stream, partial_flag, content = stream_match.groups()
             entry.timestamp = self._parse_timestamp(timestamp_str)
             entry.timestamp_precision = "ns"
+            entry.extra["stream"] = stream
+            entry.extra["partial_flag"] = partial_flag
         else:
-            content = stripped
+            match = self.TIMESTAMPED_PATTERN.match(stripped)
+            if match:
+                timestamp_str, content = match.groups()
+                entry.timestamp = self._parse_timestamp(timestamp_str)
+                entry.timestamp_precision = "ns"
+            else:
+                content = stripped
 
         # Check if content is JSON
         if content.startswith("{"):
@@ -107,10 +125,10 @@ class KubernetesContainerParser(BaseParser):
             if self.TIMESTAMPED_PATTERN.match(line):
                 timestamped += 1
             try:
-                data = json.loads(line)
+                data = safe_json_loads(line)
                 if isinstance(data, dict):
                     json_logs += 1
-            except json.JSONDecodeError:
+            except (json.JSONDecodeError, SecurityValidationError):
                 pass
 
         # Higher confidence if we see kubectl timestamp format
@@ -212,7 +230,7 @@ class KubernetesComponentParser(BaseParser):
 
     def _parse_json(self, entry: LogEntry, line: str) -> LogEntry:
         """Parse JSON format Kubernetes component log."""
-        data = json.loads(line)
+        data = safe_json_loads(line)
 
         entry.format_detected = "kubernetes_component_json"
         entry.parser_confidence = 1.0

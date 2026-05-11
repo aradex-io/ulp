@@ -7,6 +7,8 @@ Provides streaming input from standard input for piped data.
 import sys
 from typing import Iterator
 
+from ulp.core.security import validate_line_length
+
 __all__ = ["StdinStreamSource"]
 
 
@@ -47,12 +49,17 @@ class StdinStreamSource:
 
         Yields:
             Input lines (without trailing newline)
+
+        Raises:
+            LineTooLongError: If a line exceeds MAX_LINE_LENGTH
         """
         # Use binary mode for consistent handling across platforms
         for line in sys.stdin:
             self._line_count += 1
             self._byte_count += len(line.encode(self.encoding, errors="replace"))
-            yield line.rstrip("\n\r")
+            stripped = line.rstrip("\n\r")
+            validate_line_length(stripped)
+            yield stripped
 
     def metadata(self) -> dict[str, str]:
         """
@@ -138,17 +145,24 @@ class BufferedStdinSource:
 
         Yields:
             Input lines (without trailing newline)
+
+        Raises:
+            LineTooLongError: If a line exceeds MAX_LINE_LENGTH
         """
-        # First yield buffered lines
+        # First yield buffered (peeked) lines — validate them too, since peek()
+        # does not call validate_line_length.
         for line in self._buffer:
             self._line_count += 1
+            validate_line_length(line)
             yield line
 
         # Then continue with remaining stdin (if not exhausted)
         if not self._exhausted:
             for line in sys.stdin:
                 self._line_count += 1
-                yield line.rstrip("\n\r")
+                stripped = line.rstrip("\n\r")
+                validate_line_length(stripped)
+                yield stripped
 
     def metadata(self) -> dict[str, str]:
         """Get source metadata."""
