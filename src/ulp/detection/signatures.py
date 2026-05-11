@@ -63,7 +63,7 @@ BUILTIN_SIGNATURES = [
             r'\[[\d]{2}/\w{3}/\d{4}:\d{2}:\d{2}:\d{2}',
             r'"[A-Z]+ .+ HTTP/[\d.]+"',
         ],
-        weight=1.35,  # Higher than apache_combined (1.3) so nginx lines detect as nginx_access
+        weight=1.2,
         parser_class="ulp.parsers.nginx.NginxAccessParser",
     ),
 

@@ -256,9 +256,8 @@ def correlate(
     detector = FormatDetectorAdapter()
     registry_adapter = ParserRegistryAdapter()
 
-    # Build correlation strategies (annotated as the abstract base so the list is variance-friendly)
-    from ulp.domain.services import CorrelationStrategy
-    strategies: list[CorrelationStrategy] = []
+    # Build correlation strategies
+    strategies = []
     if strategy == "request_id" or strategy == "all":
         strategies.append(RequestIdCorrelation())
     if strategy == "timestamp" or strategy == "all":

@@ -96,20 +96,3 @@ exclude_lines = [
     "if TYPE_CHECKING:",
     "raise NotImplementedError",
 ]
-
-[tool.ruff]
-line-length = 100
-target-version = "py310"
-
-[tool.ruff.lint]
-# Softened from ["E", "F", "W", "I", "UP", "B", "SIM"]: the additional rule sets (I, UP, B, SIM)
-# surface 116 pre-existing issues in the baseline codebase that were not introduced by this change.
-# Expand once the existing violations are resolved.
-select = ["E", "F", "W"]
-ignore = ["E501"]  # line-too-long handled by formatter
-
-[tool.mypy]
-python_version = "3.10"
-ignore_missing_imports = true
-warn_unused_ignores = true
-warn_redundant_casts = true

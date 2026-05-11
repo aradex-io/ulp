@@ -5,7 +5,6 @@ Provides common normalization operations for log entries.
 """
 
 import re
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from datetime import timezone
 from typing import Any
 
@@ -265,13 +264,7 @@ class HostnameEnricher(NormalizationStep):
         return entry
 
     def _resolve(self, ip: str) -> str | None:
-        """Resolve IP to hostname with caching.
-
-        Uses a thread-pool future to enforce a per-call timeout without
-        touching the process-global socket.setdefaulttimeout.  The spawned
-        thread may outlive the timeout (blocked in the C resolver), but it
-        will eventually complete on its own.
-        """
+        """Resolve IP to hostname with caching."""
         if ip in self._cache:
             return self._cache[ip]
 
@@ -282,19 +275,9 @@ class HostnameEnricher(NormalizationStep):
         hostname = None
         try:
             import socket
-
-            with ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(socket.gethostbyaddr, ip)
-                try:
-                    result = future.result(timeout=self.timeout)
-                    hostname = result[0]
-                except FuturesTimeoutError:
-                    # DNS lookup timed out; the background thread will finish
-                    # eventually without affecting this thread's socket state.
-                    pass
-                except (socket.herror, socket.gaierror, socket.timeout, OSError):
-                    pass
-        except Exception:
+            socket.setdefaulttimeout(self.timeout)
+            hostname = socket.gethostbyaddr(ip)[0]
+        except (socket.herror, socket.gaierror, socket.timeout, OSError):
             pass
 
         # Cache result (including None for failed lookups)
@@ -408,25 +391,10 @@ class GeoIPEnricher(NormalizationStep):
             pass
         return None
 
-    def close(self) -> None:
-        """Explicitly close the GeoIP database reader and release the file descriptor."""
-        if self._reader is not None:
-            if hasattr(self._reader, "close"):
-                try:
-                    self._reader.close()
-                except Exception:
-                    pass
-            self._reader = None
-            self._available = False
-
-    def __enter__(self) -> "GeoIPEnricher":
-        """Support use as a context manager: ``with GeoIPEnricher(...) as g:``."""
-        return self
-
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        """Close the reader on context-manager exit."""
-        self.close()
-
-    def __del__(self) -> None:
-        """Best-effort cleanup on garbage collection (not relied upon for correctness)."""
-        self.close()
+    def __del__(self):
+        """Clean up reader."""
+        if self._reader and hasattr(self._reader, 'close'):
+            try:
+                self._reader.close()
+            except Exception:
+                pass
