@@ -6,10 +6,19 @@ They are immutable value objects with no dependencies on infrastructure.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
+
+
+def _normalize_ts(ts: datetime | None) -> datetime:
+    """Return a timezone-aware datetime for comparison only; does not mutate the entry."""
+    if ts is None:
+        return datetime.min.replace(tzinfo=timezone.utc)
+    if ts.tzinfo is None:
+        return ts.replace(tzinfo=timezone.utc)
+    return ts
 
 __all__ = [
     "LogLevel",
@@ -293,7 +302,7 @@ class LogEntry:
             entry.timestamp = parse_date(data["timestamp"])
 
         entry.timestamp_precision = data.get("timestamp_precision", "unknown")
-        entry.level = LogLevel[data.get("level", "UNKNOWN")]
+        entry.level = LogLevel.from_string(data.get("level", "UNKNOWN"))
         entry.format_detected = data.get("format_detected", "unknown")
         entry.message = data.get("message", "")
         entry.structured_data = data.get("structured_data", {})
@@ -345,13 +354,16 @@ class CorrelationGroup:
         if not self.time_range and self.entries:
             timestamps = [e.timestamp for e in self.entries if e.timestamp]
             if timestamps:
-                self.time_range = (min(timestamps), max(timestamps))
+                self.time_range = (
+                    min(timestamps, key=_normalize_ts),
+                    max(timestamps, key=_normalize_ts),
+                )
 
     def timeline(self) -> list[LogEntry]:
         """Return entries sorted chronologically."""
         return sorted(
             [e for e in self.entries if e.timestamp],
-            key=lambda e: e.timestamp
+            key=lambda e: _normalize_ts(e.timestamp)
         )
 
     def entry_count(self) -> int:

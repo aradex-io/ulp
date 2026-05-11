@@ -272,7 +272,7 @@ class LogEntry:
             entry.timestamp = parse_date(data["timestamp"])
 
         entry.timestamp_precision = data.get("timestamp_precision", "unknown")
-        entry.level = LogLevel[data.get("level", "UNKNOWN")]
+        entry.level = LogLevel.from_string(data.get("level", "UNKNOWN"))
         entry.format_detected = data.get("format_detected", "unknown")
         entry.message = data.get("message", "")
         entry.structured_data = data.get("structured_data", {})

@@ -4,11 +4,21 @@ Correlate logs use case.
 Orchestrates log correlation across multiple sources.
 """
 
+from dataclasses import replace
 from typing import Iterator
 import heapq
-from datetime import datetime
+from datetime import datetime, timezone
 from ulp.domain.entities import LogEntry, CorrelationGroup, CorrelationResult
 from ulp.domain.services import CorrelationStrategy
+
+
+def _normalize_ts(ts: datetime | None) -> datetime:
+    """Return a timezone-aware datetime for comparison only; does not mutate the entry."""
+    if ts is None:
+        return datetime.min.replace(tzinfo=timezone.utc)
+    if ts.tzinfo is None:
+        return ts.replace(tzinfo=timezone.utc)
+    return ts
 
 __all__ = ["CorrelateLogsUseCase"]
 
@@ -78,9 +88,19 @@ class CorrelateLogsUseCase:
         # Note: For very large datasets, implement windowed correlation
         all_entries = list(merged)
 
+        # Normalize timestamps to UTC-aware before passing to strategies so that
+        # mixed naive/aware sources don't raise TypeError during comparison.
+        # Original entries are not mutated; we work with shallow copies here.
+        strategy_entries = [
+            replace(e, timestamp=_normalize_ts(e.timestamp)) if (
+                e.timestamp is not None and e.timestamp.tzinfo is None
+            ) else e
+            for e in all_entries
+        ]
+
         # Apply correlation strategies
         all_groups: list[CorrelationGroup] = []
-        remaining_entries = all_entries
+        remaining_entries = strategy_entries
 
         for strategy in self.strategies:
             if not remaining_entries:
@@ -142,9 +162,7 @@ class CorrelateLogsUseCase:
         for source_id, source in enumerate(sources):
             try:
                 entry = next(source)
-                # Use current time if no timestamp (preserve order)
-                ts = entry.timestamp or datetime.min
-                heapq.heappush(heap, (ts, source_id, entry, source))
+                heapq.heappush(heap, (_normalize_ts(entry.timestamp), source_id, entry, source))
             except StopIteration:
                 pass  # Empty source
 
@@ -156,8 +174,7 @@ class CorrelateLogsUseCase:
             # Get next entry from same source
             try:
                 next_entry = next(source)
-                next_ts = next_entry.timestamp or datetime.min
-                heapq.heappush(heap, (next_ts, source_id, next_entry, source))
+                heapq.heappush(heap, (_normalize_ts(next_entry.timestamp), source_id, next_entry, source))
             except StopIteration:
                 pass  # Source exhausted
 

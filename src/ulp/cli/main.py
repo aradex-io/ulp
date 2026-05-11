@@ -45,7 +45,7 @@ def cli(ctx: click.Context, quiet: bool) -> None:
 
 
 @cli.command()
-@click.argument("files", nargs=-1, type=click.Path(exists=True))
+@click.argument("files", nargs=-1, type=click.Path(exists=True, allow_dash=True))
 @click.option(
     "--format", "-f", "log_format",
     help="Force a specific log format (skip auto-detection)"
@@ -58,11 +58,14 @@ def cli(ctx: click.Context, quiet: bool) -> None:
 )
 @click.option(
     "--level", "-l",
-    type=click.Choice(["debug", "info", "warning", "error", "critical"], case_sensitive=False),
+    type=click.Choice(
+        ["trace", "debug", "info", "notice", "warning", "error", "critical", "alert", "emergency"],
+        case_sensitive=False,
+    ),
     help="Filter by minimum log level"
 )
 @click.option(
-    "--limit", "-n", type=int,
+    "--limit", "-n", type=click.IntRange(min=1),
     help="Limit number of entries to display"
 )
 @click.option(
@@ -118,7 +121,7 @@ def parse(
 
 
 @cli.command()
-@click.argument("files", nargs=-1, type=click.Path(exists=True), required=True)
+@click.argument("files", nargs=-1, type=click.Path(exists=True, allow_dash=True), required=True)
 @click.option(
     "--format", "-f", "log_format",
     help="Force a specific log format for all files"
@@ -130,7 +133,7 @@ def parse(
     help="Correlation strategy (default: all)"
 )
 @click.option(
-    "--window", "-w", type=float, default=1.0,
+    "--window", "-w", type=click.FloatRange(min=0.0, min_open=True), default=1.0,
     help="Time window in seconds for timestamp correlation (default: 1.0)"
 )
 @click.option(
@@ -179,7 +182,7 @@ def correlate(
 
 
 @cli.command()
-@click.argument("file", type=click.Path(exists=True))
+@click.argument("file", type=click.Path(exists=True, allow_dash=True))
 @click.option(
     "--format", "-f", "log_format", required=True,
     help="Log format (required - no auto-detection in stream mode)"
@@ -229,7 +232,7 @@ def stream(
 
 
 @cli.command()
-@click.argument("files", nargs=-1, type=click.Path(exists=True))
+@click.argument("files", nargs=-1, type=click.Path(exists=True, allow_dash=True))
 @click.option(
     "--all", "-a", "show_all", is_flag=True,
     help="Show all matching formats with confidence scores"
@@ -254,11 +257,16 @@ def detect(
     """
     from ulp.detection.detector import FormatDetector
 
+    console = ctx.obj["console"]
+    error_console = ctx.obj["error_console"]
+    quiet = ctx.obj.get("quiet", False)
+
     if not files:
         error_console.print("[red]Error:[/red] No files specified")
         ctx.exit(1)
 
     detector = FormatDetector()
+    had_error = False
 
     for file_path in files:
         try:
@@ -271,7 +279,8 @@ def detect(
                     lines = [line for line in lines if line.strip()]
 
                 all_formats = detector.detect_all(lines)
-                console.print(f"\n[bold]{path.name}[/bold]")
+                if not quiet:
+                    console.print(f"\n[bold]{path.name}[/bold]")
 
                 for fmt, conf in all_formats[:5]:  # Top 5
                     bar = _confidence_bar(conf)
@@ -284,6 +293,10 @@ def detect(
 
         except IOError as e:
             error_console.print(f"[red]Error reading {file_path}:[/red] {e}")
+            had_error = True
+
+    if had_error:
+        ctx.exit(1)
 
 
 def _confidence_bar(confidence: float, width: int = 10) -> str:
@@ -311,6 +324,8 @@ def formats(ctx: click.Context) -> None:
     """
     from rich.table import Table
     from ulp.parsers import registry
+
+    console = ctx.obj["console"]
 
     table = Table(title="Supported Log Formats")
     table.add_column("Parser", style="cyan")

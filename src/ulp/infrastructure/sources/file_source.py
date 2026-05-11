@@ -9,11 +9,12 @@ from typing import Callable, Iterator
 
 from ulp.core.security import (
     MAX_LINE_LENGTH,
+    LineTooLongError,
     validate_line_length,
     check_symlink,
 )
 
-__all__ = ["FileStreamSource", "LargeFileStreamSource"]
+__all__ = ["FileStreamSource", "LargeFileStreamSource", "ChunkedFileStreamSource"]
 
 
 class FileStreamSource:
@@ -171,49 +172,43 @@ class LargeFileStreamSource:
                 yield stripped
 
     def _read_lines_mmap(self) -> Iterator[str]:
-        """Read using memory mapping for large files."""
+        """Read using memory mapping for large files.
+
+        Uses mm.find(b"\\n", position) for C-speed newline scanning instead of
+        a per-byte Python loop, and raises LineTooLongError before accumulating
+        oversized data in memory.  Falls back gracefully on empty/rotated files.
+        """
         import mmap
 
-        with open(self.path, "rb") as f:
-            # Create memory map
-            with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
-                buffer = bytearray()
-                position = 0
-
-                while position < len(mm):
-                    # Read in chunks
-                    chunk_end = min(position + self.chunk_size, len(mm))
-                    chunk = mm[position:chunk_end]
-
-                    # Process bytes
-                    for byte in chunk:
-                        if byte == ord("\n"):
-                            # Found line end
-                            try:
-                                line = buffer.decode(self.encoding, errors=self.errors)
-                                stripped = line.rstrip("\r")
-                                # H1: Validate line length
-                                validate_line_length(stripped)
-                                yield stripped
-                            except UnicodeDecodeError:
-                                # Skip malformed lines
-                                pass
-                            buffer = bytearray()
+        try:
+            with open(self.path, "rb") as f:
+                try:
+                    mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+                except ValueError:
+                    # Empty file or file shrunk to 0 after stat (e.g. log rotation)
+                    return
+                with mm:
+                    position = 0
+                    size = len(mm)
+                    while position < size:
+                        nl_pos = mm.find(b"\n", position)
+                        if nl_pos == -1:
+                            # Final partial line (no trailing newline)
+                            if size - position > MAX_LINE_LENGTH:
+                                raise LineTooLongError(size - position, MAX_LINE_LENGTH)
+                            raw = mm[position:size]
+                            position = size
                         else:
-                            buffer.append(byte)
-
-                    position = chunk_end
-
-                # Yield final line if no trailing newline
-                if buffer:
-                    try:
-                        line = buffer.decode(self.encoding, errors=self.errors)
-                        stripped = line.rstrip("\r")
-                        # H1: Validate line length
-                        validate_line_length(stripped)
-                        yield stripped
-                    except UnicodeDecodeError:
-                        pass
+                            if nl_pos - position > MAX_LINE_LENGTH:
+                                raise LineTooLongError(nl_pos - position, MAX_LINE_LENGTH)
+                            raw = mm[position:nl_pos]
+                            position = nl_pos + 1
+                        line = raw.decode(self.encoding, errors=self.errors).rstrip("\r")
+                        validate_line_length(line)  # final guarantee after decode
+                        if line:
+                            yield line
+        except LineTooLongError:
+            raise
 
     def metadata(self) -> dict[str, str]:
         """Get source metadata."""
@@ -311,8 +306,9 @@ class ChunkedFileStreamSource:
                         lines_read
                     )
 
-        # Final progress callback
-        if self.progress_callback:
+        # Final progress callback (skip when file is empty to avoid division by zero
+        # in naive callers that compute pct = bytes_read / total_bytes)
+        if self.progress_callback and self._file_size > 0:
             self.progress_callback(bytes_read, self._file_size, lines_read)
 
     def metadata(self) -> dict[str, str]:
