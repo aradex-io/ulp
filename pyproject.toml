@@ -1,0 +1,98 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ulp"
+version = "0.2.0"
+description = "Universal Log Parser - Automatically detect, parse, and normalize logs from any format. Streaming support for 1-10GB+ files and cross-source log correlation."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [
+    { name = "ULP Contributors" }
+]
+keywords = [
+    "logging",
+    "parser",
+    "log-analysis",
+    "cli",
+    "devops",
+    "observability",
+    "correlation",
+    "streaming",
+    "docker",
+    "kubernetes",
+    "syslog",
+    "json-logs",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Logging",
+    "Topic :: System :: Systems Administration",
+    "Topic :: System :: Monitoring",
+    "Topic :: Utilities",
+    "Typing :: Typed",
+]
+dependencies = [
+    "click>=8.0",
+    "rich>=13.0",
+    "python-dateutil>=2.8",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "mypy>=1.0",
+    "ruff>=0.1.0",
+]
+benchmark = [
+    "psutil>=5.9",
+]
+geoip = [
+    "maxminddb>=2.0",
+]
+all = [
+    "psutil>=5.9",
+    "maxminddb>=2.0",
+]
+
+[project.scripts]
+ulp = "ulp.cli.main:cli"
+
+[project.urls]
+Homepage = "https://github.com/jeremylaratro/ulp"
+Documentation = "https://github.com/jeremylaratro/ulp#readme"
+Issues = "https://github.com/jeremylaratro/ulp/issues"
+Changelog = "https://github.com/jeremylaratro/ulp/blob/main/CHANGELOG.md"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ulp"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+[tool.coverage.run]
+source = ["src/ulp"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
