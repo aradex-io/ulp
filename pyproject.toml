@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ulp"
-version = "0.2.0"
+version = "0.2.1"
 description = "Universal Log Parser - Automatically detect, parse, and normalize logs from any format. Streaming support for 1-10GB+ files and cross-source log correlation."
 readme = "README.md"
 license = "MIT"
