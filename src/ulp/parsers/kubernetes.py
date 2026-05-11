@@ -69,6 +69,7 @@ class KubernetesContainerParser(BaseParser):
         stripped = line.strip()
 
         # Try to extract timestamp prefix (and optional stream/partial-flag metadata)
+        has_timestamp = False
         stream_match = self._STREAM_PATTERN.match(stripped)
         if stream_match:
             timestamp_str, stream, partial_flag, content = stream_match.groups()
@@ -76,12 +77,14 @@ class KubernetesContainerParser(BaseParser):
             entry.timestamp_precision = "ns"
             entry.extra["stream"] = stream
             entry.extra["partial_flag"] = partial_flag
+            has_timestamp = True
         else:
-            match = self.TIMESTAMPED_PATTERN.match(stripped)
-            if match:
-                timestamp_str, content = match.groups()
+            ts_match = self.TIMESTAMPED_PATTERN.match(stripped)
+            if ts_match:
+                timestamp_str, content = ts_match.groups()
                 entry.timestamp = self._parse_timestamp(timestamp_str)
                 entry.timestamp_precision = "ns"
+                has_timestamp = True
             else:
                 content = stripped
 
@@ -106,7 +109,7 @@ class KubernetesContainerParser(BaseParser):
         entry.message = content
         entry.level = self._infer_level_from_message(content)
         entry.format_detected = "kubernetes_container"
-        entry.parser_confidence = 0.8 if match else 0.6
+        entry.parser_confidence = 0.8 if has_timestamp else 0.6
 
         return entry
 

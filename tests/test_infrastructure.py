@@ -522,7 +522,7 @@ class TestBufferedStdinSource:
 
         monkeypatch.setattr("sys.stdin", io.StringIO("a\nb\nc\n"))
         src = BufferedStdinSource(peek_lines=2)
-        peeked = src.peek(2) if "2" in str(src.peek.__code__.co_varnames) else src.peek()
+        peeked = src.peek()
         assert peeked[:2] == ["a", "b"]
         all_lines = list(src.read_lines())
         assert all_lines == ["a", "b", "c"]
