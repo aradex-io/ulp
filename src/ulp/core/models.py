@@ -28,6 +28,8 @@ class LogLevel(Enum):
     Standard log levels mapped from various formats.
 
     Values are ordered by severity (higher = more severe).
+
+    Supports comparison operators for filtering (e.g., level >= LogLevel.ERROR).
     """
     TRACE = 0
     DEBUG = 10
@@ -58,6 +60,7 @@ class LogLevel(Enum):
             "trace": cls.TRACE,
             "debug": cls.DEBUG,
             "info": cls.INFO,
+            "information": cls.INFO,  # alias for INFO (merged from former domain.entities)
             "notice": cls.NOTICE,
             "warn": cls.WARNING,
             "warning": cls.WARNING,
@@ -69,6 +72,7 @@ class LogLevel(Enum):
             "alert": cls.ALERT,
             "emergency": cls.EMERGENCY,
             "emerg": cls.EMERGENCY,
+            "panic": cls.EMERGENCY,  # alias for EMERGENCY (merged from former domain.entities)
             # Single character abbreviations
             "t": cls.TRACE,
             "d": cls.DEBUG,
@@ -174,6 +178,25 @@ class CorrelationIds:
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary, excluding None values."""
         return {k: v for k, v in self.__dict__.items() if v is not None}
+
+    def has_any_id(self) -> bool:
+        """Check if any correlation ID is set."""
+        return any([
+            self.request_id, self.trace_id, self.span_id,
+            self.correlation_id, self.session_id, self.user_id,
+            self.transaction_id,
+        ])
+
+    def get_primary_id(self) -> tuple[str, str] | None:
+        """Get the first non-None correlation ID as (field_name, value)."""
+        for field_name in [
+            "request_id", "trace_id", "correlation_id", "transaction_id",
+            "span_id", "session_id", "user_id",
+        ]:
+            value = getattr(self, field_name)
+            if value:
+                return (field_name, value)
+        return None
 
 
 @dataclass
