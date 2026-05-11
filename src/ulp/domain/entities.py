@@ -426,6 +426,11 @@ class CorrelationResult:
             "avg_group_size": correlated_entries / len(self.groups) if self.groups else 0,
         }
 
+    @property
+    def entry_count(self) -> int:
+        """Total number of entries across all groups and orphans."""
+        return self.statistics.get("total_entries", 0)
+
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary."""
         return {

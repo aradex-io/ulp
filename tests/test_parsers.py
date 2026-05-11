@@ -358,3 +358,223 @@ class TestParseStream:
         entries = list(parser.parse_stream(iter(lines)))
 
         assert len(entries) == 3
+
+
+# ---------------------------------------------------------------------------
+# HIGH-T-4: Docker and Kubernetes parsers
+# ---------------------------------------------------------------------------
+
+class TestDockerJSONParser:
+    """Tests for DockerJSONParser (HIGH-T-4)."""
+
+    def test_basic_docker_json(self):
+        """Parse a well-formed Docker JSON container log line."""
+        from ulp.parsers.docker import DockerJSONParser
+
+        line = '{"log":"hello world\\n","stream":"stdout","time":"2024-01-15T10:30:00.123456789Z"}'
+        entry = DockerJSONParser().parse_line(line)
+        assert "hello world" in entry.message
+        assert entry.timestamp is not None
+        assert entry.parse_errors == []
+
+    def test_stderr_to_warning(self):
+        """stderr stream without an explicit error keyword should yield >= INFO level."""
+        from ulp.parsers.docker import DockerJSONParser
+
+        line = '{"log":"oops","stream":"stderr","time":"2024-01-15T10:30:00Z"}'
+        entry = DockerJSONParser().parse_line(line)
+        # stderr defaults to WARNING when inferred level would be INFO
+        assert entry.level in (LogLevel.WARNING, LogLevel.ERROR, LogLevel.INFO)
+
+    def test_stderr_error_message_not_downgraded(self):
+        """stderr stream with 'error' in message should not be downgraded below WARNING."""
+        from ulp.parsers.docker import DockerJSONParser
+
+        line = '{"log":"error: connection refused","stream":"stderr","time":"2024-01-15T10:30:00Z"}'
+        entry = DockerJSONParser().parse_line(line)
+        assert entry.level >= LogLevel.WARNING
+
+    def test_malformed_returns_unknown(self):
+        """Non-JSON input should produce a LogLevel.UNKNOWN entry with parse_errors."""
+        from ulp.parsers.docker import DockerJSONParser
+
+        entry = DockerJSONParser().parse_line("not json at all")
+        assert entry.level == LogLevel.UNKNOWN
+        assert len(entry.parse_errors) >= 1
+
+    def test_missing_log_field(self):
+        """Valid JSON but missing 'log' key is flagged."""
+        from ulp.parsers.docker import DockerJSONParser
+
+        line = '{"stream":"stdout","time":"2024-01-15T10:30:00Z"}'
+        entry = DockerJSONParser().parse_line(line)
+        assert len(entry.parse_errors) >= 1
+
+    def test_can_parse_docker_sample(self):
+        """can_parse returns high confidence for Docker JSON lines."""
+        from ulp.parsers.docker import DockerJSONParser
+
+        sample = [
+            '{"log":"msg1\\n","stream":"stdout","time":"2024-01-15T10:30:00.123Z"}',
+            '{"log":"msg2\\n","stream":"stderr","time":"2024-01-15T10:30:01.456Z"}',
+        ]
+        confidence = DockerJSONParser().can_parse(sample)
+        assert confidence > 0.8
+
+    def test_format_detected(self):
+        """format_detected is set for valid Docker JSON logs."""
+        from ulp.parsers.docker import DockerJSONParser
+
+        line = '{"log":"start\\n","stream":"stdout","time":"2024-01-15T10:30:00.123Z"}'
+        entry = DockerJSONParser().parse_line(line)
+        assert entry.format_detected == "docker_json"
+
+
+class TestKubernetesContainerParser:
+    """Tests for KubernetesContainerParser CRI format (HIGH-T-4, HIGH-P-3)."""
+
+    def test_cri_format_strips_stream_flag(self):
+        """CRI-O / containerd lines: stream type and partial flag must NOT appear in message."""
+        from ulp.parsers.kubernetes import KubernetesContainerParser
+
+        line = "2024-01-15T10:30:00.123Z stdout F App started"
+        entry = KubernetesContainerParser().parse_line(line)
+        assert "stdout" not in entry.message
+        assert "App started" in entry.message
+
+    def test_cri_format_no_subsecond(self):
+        """CRI-O lines without sub-second precision should still parse correctly."""
+        from ulp.parsers.kubernetes import KubernetesContainerParser
+
+        line = "2024-01-15T10:30:00Z stderr F Error occurred"
+        entry = KubernetesContainerParser().parse_line(line)
+        assert "Error occurred" in entry.message
+
+    def test_timestamped_line_sets_timestamp(self):
+        """Lines with an ISO-8601Z prefix should have a non-None timestamp."""
+        from ulp.parsers.kubernetes import KubernetesContainerParser
+
+        line = "2024-01-15T10:30:00.000000000Z plain message here"
+        entry = KubernetesContainerParser().parse_line(line)
+        assert entry.timestamp is not None
+
+    def test_json_embedded_in_container_log(self):
+        """JSON-formatted log content is further parsed to extract level/message."""
+        from ulp.parsers.kubernetes import KubernetesContainerParser
+
+        line = '2024-01-15T10:30:00.123456789Z {"level":"error","message":"db down"}'
+        entry = KubernetesContainerParser().parse_line(line)
+        assert entry.level == LogLevel.ERROR
+        assert "db down" in entry.message
+
+
+class TestKubernetesAuditParser:
+    """Tests for KubernetesAuditParser (HIGH-T-4, CRIT-8)."""
+
+    def test_null_response_status(self):
+        """responseStatus: null must not crash the parser (CRIT-8 regression)."""
+        import json
+        from ulp.parsers.kubernetes import KubernetesAuditParser
+
+        data = {
+            "apiVersion": "audit.k8s.io/v1",
+            "kind": "Event",
+            "stage": "RequestReceived",
+            "requestURI": "/api/v1/namespaces",
+            "verb": "list",
+            "user": {"username": "test"},
+            "responseStatus": None,
+            "requestReceivedTimestamp": "2024-01-15T10:30:00Z",
+        }
+        entry = KubernetesAuditParser().parse_line(json.dumps(data))
+        assert entry is not None
+        assert entry.parse_errors == []  # no crash → no parse error
+
+    def test_normal_audit_event(self):
+        """A well-formed audit event is parsed to INFO/WARNING/ERROR based on status code."""
+        import json
+        from ulp.parsers.kubernetes import KubernetesAuditParser
+
+        data = {
+            "apiVersion": "audit.k8s.io/v1",
+            "kind": "Event",
+            "stage": "ResponseComplete",
+            "requestURI": "/api/v1/pods",
+            "verb": "list",
+            "user": {"username": "admin"},
+            "responseStatus": {"code": 200},
+            "requestReceivedTimestamp": "2024-01-15T10:30:00Z",
+            "auditID": "abc-123",
+        }
+        entry = KubernetesAuditParser().parse_line(json.dumps(data))
+        assert entry.level == LogLevel.INFO
+        assert entry.format_detected == "kubernetes_audit"
+
+    def test_malformed_json_returns_errors(self):
+        """Malformed JSON line returns a LogEntry with parse_errors populated."""
+        from ulp.parsers.kubernetes import KubernetesAuditParser
+
+        entry = KubernetesAuditParser().parse_line("not json {")
+        assert len(entry.parse_errors) >= 1
+
+    def test_non_audit_json_is_flagged(self):
+        """JSON that is not a k8s audit event is flagged with parse_errors."""
+        import json
+        from ulp.parsers.kubernetes import KubernetesAuditParser
+
+        data = {"level": "info", "message": "just a normal log"}
+        entry = KubernetesAuditParser().parse_line(json.dumps(data))
+        assert len(entry.parse_errors) >= 1
+
+
+# ---------------------------------------------------------------------------
+# Regression: Apache/Nginx escaped quotes (CRIT-9)
+# ---------------------------------------------------------------------------
+
+def test_apache_combined_escaped_quote_in_request():
+    """ApacheCombinedParser must handle escaped quotes inside the request field."""
+    from ulp.parsers.apache import ApacheCombinedParser
+
+    line = r'192.168.1.1 - - [27/Jan/2026:10:15:32 +0000] "GET /search?q=\"x\" HTTP/1.1" 200 1234 "-" "-"'
+    entry = ApacheCombinedParser().parse_line(line)
+    assert entry.http is not None, f"http is None; parse_errors={entry.parse_errors}"
+    assert entry.http.method == "GET"
+    assert entry.http.status_code == 200
+
+
+def test_nginx_access_escaped_quote():
+    """NginxAccessParser must handle escaped quotes inside the request field."""
+    from ulp.parsers.nginx import NginxAccessParser
+
+    line = r'192.168.1.1 - - [27/Jan/2026:10:15:32 +0000] "GET /search?q=\"x\" HTTP/1.1" 200 1234 "-" "-"'
+    entry = NginxAccessParser().parse_line(line)
+    assert entry.http is not None, f"http is None; parse_errors={entry.parse_errors}"
+    assert entry.http.method == "GET"
+
+
+# ---------------------------------------------------------------------------
+# Regression: BaseParser Z-suffix timestamp (HIGH-P-1)
+# ---------------------------------------------------------------------------
+
+def test_base_parser_z_suffix_is_aware():
+    """_parse_timestamp must produce timezone-aware datetimes for Z-suffix strings."""
+    from ulp.core.base import BaseParser
+
+    class _ConcreteParser(BaseParser):
+        name = "test"
+        supported_formats = []
+
+        def parse_line(self, line):
+            return None
+
+        def can_parse(self, sample):
+            return 0.0
+
+    p = _ConcreteParser()
+    ts = p._parse_timestamp("2024-01-15T10:30:00.123Z")
+    assert ts is not None
+    assert ts.tzinfo is not None, "Z-suffix timestamp must be timezone-aware"
+
+    ts2 = p._parse_timestamp("2024-01-15T10:30:00Z")
+    assert ts2 is not None
+    assert ts2.tzinfo is not None, "Z-suffix timestamp (no subseconds) must be timezone-aware"

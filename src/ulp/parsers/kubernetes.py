@@ -314,10 +314,15 @@ class KubernetesAuditParser(BaseParser):
         entry.parser_name = self.name
 
         try:
-            data = json.loads(line.strip())
+            data = safe_json_loads(line.strip())
         except json.JSONDecodeError as e:
             entry.parse_errors.append(f"JSON decode error: {e}")
             entry.message = line
+            entry.parser_confidence = 0.0
+            return entry
+        except SecurityValidationError as e:
+            entry.parse_errors.append(f"JSON security validation failed: {e.message}")
+            entry.message = line[:200] + "..." if len(line) > 200 else line
             entry.parser_confidence = 0.0
             return entry
 
@@ -351,7 +356,10 @@ class KubernetesAuditParser(BaseParser):
             entry.timestamp = self._parse_timestamp(data["requestReceivedTimestamp"])
 
         # Level based on response code
-        response_code = data.get("responseStatus", {}).get("code", 200)
+        # Use `or {}` to handle the case where responseStatus is null (None),
+        # which is normal for RequestReceived stage audit events.
+        response_status = data.get("responseStatus") or {}
+        response_code = response_status.get("code", 200)
 
         if response_code >= 500:
             entry.level = LogLevel.ERROR
@@ -366,7 +374,8 @@ class KubernetesAuditParser(BaseParser):
         )
 
         # Extract user info
-        user = data.get("user", {})
+        # Use `or {}` to handle user: null gracefully
+        user = data.get("user") or {}
         if user:
             entry.correlation.user_id = user.get("username")
             entry.structured_data["user_groups"] = user.get("groups", [])
@@ -389,13 +398,13 @@ class KubernetesAuditParser(BaseParser):
             if not line:
                 continue
             try:
-                data = json.loads(line)
+                data = safe_json_loads(line)
                 if isinstance(data, dict):
                     if "audit.k8s.io" in data.get("apiVersion", ""):
                         matches += 1
                     elif data.get("kind") == "Event" and "auditID" in data:
                         matches += 0.8
-            except json.JSONDecodeError:
+            except (json.JSONDecodeError, SecurityValidationError):
                 pass
 
         if not sample:
@@ -490,7 +499,7 @@ class KubernetesEventParser(BaseParser):
 
     def _parse_json(self, entry: LogEntry, line: str) -> LogEntry:
         """Parse JSON format Kubernetes event."""
-        data = json.loads(line)
+        data = safe_json_loads(line)
 
         entry.format_detected = "kubernetes_event_json"
         entry.parser_confidence = 1.0
@@ -499,7 +508,8 @@ class KubernetesEventParser(BaseParser):
         # Extract key fields
         reason = data.get("reason", "")
         message = data.get("message", "")
-        obj_ref = data.get("involvedObject", {})
+        # Use `or {}` to handle involvedObject: null gracefully
+        obj_ref = data.get("involvedObject") or {}
         obj_str = f"{obj_ref.get('kind', '')}/{obj_ref.get('name', '')}"
 
         entry.message = f"[{reason}] {obj_str}: {message}"
@@ -541,11 +551,11 @@ class KubernetesEventParser(BaseParser):
 
             # Check for JSON format
             try:
-                data = json.loads(line)
+                data = safe_json_loads(line)
                 if isinstance(data, dict):
                     if data.get("kind") == "Event" or "involvedObject" in data:
                         matches += 1
-            except json.JSONDecodeError:
+            except (json.JSONDecodeError, SecurityValidationError):
                 pass
 
         if not sample:

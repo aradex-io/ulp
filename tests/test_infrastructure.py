@@ -397,3 +397,218 @@ class TestFieldNormalizer:
 
         result = normalizer.normalize(entry)
         assert "custom_field" in result.structured_data
+
+
+# ---------------------------------------------------------------------------
+# HIGH-T-2: mmap branch coverage
+# ---------------------------------------------------------------------------
+
+class TestLargeFileStreamSourceMmap:
+    """Additional mmap path tests (HIGH-T-2)."""
+
+    def test_mmap_branch_actually_runs(self, tmp_path, monkeypatch):
+        """Force mmap path on a small file by lowering MMAP_THRESHOLD to 0."""
+        from ulp.infrastructure.sources import file_source as fs_mod
+
+        monkeypatch.setattr(fs_mod.LargeFileStreamSource, "MMAP_THRESHOLD", 0, raising=False)
+        f = tmp_path / "small.log"
+        f.write_text("line1\nline2\nline3\n")
+        src = fs_mod.LargeFileStreamSource(str(f))
+        # The threshold monkeypatch may not affect an already-constructed object,
+        # so force the flag directly.
+        src._use_mmap = True
+        lines = list(src.read_lines())
+        assert lines == ["line1", "line2", "line3"]
+
+    def test_mmap_empty_file(self, tmp_path):
+        """mmap on an empty file must not raise and must yield nothing."""
+        f = tmp_path / "empty.log"
+        f.write_bytes(b"")
+        src = LargeFileStreamSource(str(f))
+        src._use_mmap = True
+        assert list(src.read_lines()) == []
+
+    def test_mmap_line_too_long(self, tmp_path):
+        """mmap path must raise LineTooLongError for lines exceeding MAX_LINE_LENGTH."""
+        from ulp.core.security import LineTooLongError, MAX_LINE_LENGTH
+
+        f = tmp_path / "huge_line.log"
+        # Write a single line longer than the cap (no newline)
+        f.write_bytes(b"a" * (MAX_LINE_LENGTH + 10))
+        src = LargeFileStreamSource(str(f))
+        src._use_mmap = True
+        with pytest.raises(LineTooLongError):
+            list(src.read_lines())
+
+    def test_mmap_no_trailing_newline(self, tmp_path):
+        """mmap path correctly yields a final partial line with no trailing newline."""
+        from ulp.infrastructure.sources import file_source as fs_mod
+
+        f = tmp_path / "partial.log"
+        f.write_text("line1\nno_newline_here")
+        src = fs_mod.LargeFileStreamSource(str(f))
+        src._use_mmap = True
+        lines = list(src.read_lines())
+        assert "no_newline_here" in lines
+
+
+# ---------------------------------------------------------------------------
+# HIGH-T-3: Stdin sources
+# ---------------------------------------------------------------------------
+
+class TestStdinStreamSource:
+    """Tests for StdinStreamSource (HIGH-T-3)."""
+
+    def test_basic_read(self, monkeypatch):
+        """Basic multi-line stdin read."""
+        import io
+        from ulp.infrastructure.sources.stdin_source import StdinStreamSource
+
+        monkeypatch.setattr("sys.stdin", io.StringIO("line1\nline2\n"))
+        src = StdinStreamSource()
+        assert list(src.read_lines()) == ["line1", "line2"]
+
+    def test_empty_stdin(self, monkeypatch):
+        """Empty stdin yields no lines."""
+        import io
+        from ulp.infrastructure.sources.stdin_source import StdinStreamSource
+
+        monkeypatch.setattr("sys.stdin", io.StringIO(""))
+        src = StdinStreamSource()
+        assert list(src.read_lines()) == []
+
+    def test_single_line_no_newline(self, monkeypatch):
+        """Single line without trailing newline is returned."""
+        import io
+        from ulp.infrastructure.sources.stdin_source import StdinStreamSource
+
+        monkeypatch.setattr("sys.stdin", io.StringIO("only_line"))
+        src = StdinStreamSource()
+        lines = list(src.read_lines())
+        assert lines == ["only_line"]
+
+    def test_line_too_long_raises(self, monkeypatch):
+        """Lines exceeding MAX_LINE_LENGTH must raise LineTooLongError."""
+        import io
+        from ulp.core.security import MAX_LINE_LENGTH, LineTooLongError
+        from ulp.infrastructure.sources.stdin_source import StdinStreamSource
+
+        long_line = "a" * (MAX_LINE_LENGTH + 1) + "\n"
+        monkeypatch.setattr("sys.stdin", io.StringIO(long_line))
+        src = StdinStreamSource()
+        with pytest.raises(LineTooLongError):
+            list(src.read_lines())
+
+    def test_metadata_after_read(self, monkeypatch):
+        """Metadata is populated after reading."""
+        import io
+        from ulp.infrastructure.sources.stdin_source import StdinStreamSource
+
+        monkeypatch.setattr("sys.stdin", io.StringIO("a\nb\n"))
+        src = StdinStreamSource()
+        list(src.read_lines())
+        meta = src.metadata()
+        assert meta["source_type"] == "stdin"
+        assert int(meta["lines_read"]) == 2
+
+
+class TestBufferedStdinSource:
+    """Tests for BufferedStdinSource (HIGH-T-3)."""
+
+    def test_peek_then_read(self, monkeypatch):
+        """peek() returns first N lines; read_lines() returns ALL lines including peeked."""
+        import io
+        from ulp.infrastructure.sources.stdin_source import BufferedStdinSource
+
+        monkeypatch.setattr("sys.stdin", io.StringIO("a\nb\nc\n"))
+        src = BufferedStdinSource(peek_lines=2)
+        peeked = src.peek(2) if "2" in str(src.peek.__code__.co_varnames) else src.peek()
+        assert peeked[:2] == ["a", "b"]
+        all_lines = list(src.read_lines())
+        assert all_lines == ["a", "b", "c"]
+
+    def test_peek_default(self, monkeypatch):
+        """peek() with no argument uses peek_lines default."""
+        import io
+        from ulp.infrastructure.sources.stdin_source import BufferedStdinSource
+
+        monkeypatch.setattr("sys.stdin", io.StringIO("x\ny\nz\n"))
+        src = BufferedStdinSource(peek_lines=2)
+        peeked = src.peek()
+        assert len(peeked) == 2
+
+    def test_empty_stdin_buffered(self, monkeypatch):
+        """Empty stdin in BufferedStdinSource yields nothing."""
+        import io
+        from ulp.infrastructure.sources.stdin_source import BufferedStdinSource
+
+        monkeypatch.setattr("sys.stdin", io.StringIO(""))
+        src = BufferedStdinSource()
+        assert list(src.read_lines()) == []
+
+    def test_line_too_long_in_buffered(self, monkeypatch):
+        """Lines exceeding MAX_LINE_LENGTH in BufferedStdinSource must raise LineTooLongError."""
+        import io
+        from ulp.core.security import MAX_LINE_LENGTH, LineTooLongError
+        from ulp.infrastructure.sources.stdin_source import BufferedStdinSource
+
+        long_line = "a" * (MAX_LINE_LENGTH + 1) + "\n"
+        monkeypatch.setattr("sys.stdin", io.StringIO(long_line))
+        src = BufferedStdinSource()
+        with pytest.raises(LineTooLongError):
+            list(src.read_lines())
+
+    def test_buffered_exhausted_flag(self, monkeypatch):
+        """_exhausted is True when stdin runs out during peek."""
+        import io
+        from ulp.infrastructure.sources.stdin_source import BufferedStdinSource
+
+        # Only 2 lines; peek_lines=50 → stdin exhausted during peek
+        monkeypatch.setattr("sys.stdin", io.StringIO("x\ny\n"))
+        src = BufferedStdinSource(peek_lines=50)
+        src.peek()
+        assert src._exhausted is True
+
+
+# ---------------------------------------------------------------------------
+# HIGH-T-5: Correlation bound tests
+# ---------------------------------------------------------------------------
+
+def test_request_id_orphan_bound():
+    """Feed more than MAX_ORPHAN_ENTRIES orphans and confirm warning + no crash."""
+    import warnings
+    from ulp.core.security import MAX_ORPHAN_ENTRIES
+    from ulp.infrastructure.correlation.strategies import RequestIdCorrelation
+
+    # Entries with no correlation IDs are orphans
+    entries = [LogEntry(message=f"msg{i}", correlation=CorrelationIds()) for i in range(MAX_ORPHAN_ENTRIES + 100)]
+    strategy = RequestIdCorrelation()
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        groups = list(strategy.correlate(iter(entries)))
+    # No groups should be emitted (orphans are never grouped)
+    assert isinstance(groups, list)
+    # At least one UserWarning about orphan overflow
+    overflow_warns = [x for x in w if issubclass(x.category, UserWarning) and "orphan" in str(x.message).lower()]
+    assert len(overflow_warns) >= 1
+
+
+def test_session_groups_bound():
+    """Feed more than MAX_SESSION_GROUPS unique sessions and confirm no crash + warning."""
+    import warnings
+    from ulp.core.security import MAX_SESSION_GROUPS
+    from ulp.infrastructure.correlation.strategies import SessionCorrelation
+
+    entries = [
+        LogEntry(message=f"msg{i}", correlation=CorrelationIds(session_id=f"sess-{i}"))
+        for i in range(MAX_SESSION_GROUPS + 10)
+    ]
+    strategy = SessionCorrelation()
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        groups = list(strategy.correlate(iter(entries)))
+    # Must complete without exception
+    assert isinstance(groups, list)
+    # At least one UserWarning about session overflow
+    overflow_warns = [x for x in w if issubclass(x.category, UserWarning) and "session" in str(x.message).lower()]
+    assert len(overflow_warns) >= 1
