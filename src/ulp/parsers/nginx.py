@@ -27,15 +27,15 @@ class NginxAccessParser(BaseParser):
 
     # Pattern similar to Apache Combined but with Nginx variations
     PATTERN = re.compile(
-        r'^(?P<ip>\S+)\s+'              # Client IP
-        r'(?P<ident>\S+)\s+'             # Ident (usually -)
-        r'(?P<user>\S+)\s+'              # Remote user
-        r'\[(?P<timestamp>[^\]]+)\]\s+'  # Timestamp in brackets
+        r"^(?P<ip>\S+)\s+"  # Client IP
+        r"(?P<ident>\S+)\s+"  # Ident (usually -)
+        r"(?P<user>\S+)\s+"  # Remote user
+        r"\[(?P<timestamp>[^\]]+)\]\s+"  # Timestamp in brackets
         r'"(?P<request>(?:[^"\\]|\\.)*)"\s+'  # Request line (escaped-quote safe)
-        r'(?P<status>\d+)\s+'            # Status code
-        r'(?P<size>\S+)'                 # Body bytes sent
+        r"(?P<status>\d+)\s+"  # Status code
+        r"(?P<size>\S+)"  # Body bytes sent
         r'(?:\s+"(?P<referer>(?:[^"\\]|\\.)*)"\s+'  # Optional referer (escaped-quote safe)
-        r'"(?P<user_agent>(?:[^"\\]|\\.)*)")?'       # Optional user-agent (escaped-quote safe)
+        r'"(?P<user_agent>(?:[^"\\]|\\.)*)")?'  # Optional user-agent (escaped-quote safe)
     )
 
     def parse_line(self, line: str) -> LogEntry:
@@ -88,7 +88,9 @@ class NginxAccessParser(BaseParser):
         entry.level = self._level_from_status(entry.http.status_code)
 
         # Build message
-        entry.message = f"{request_parts.get('method', '-')} {request_parts.get('path', '-')} -> {d['status']}"
+        entry.message = (
+            f"{request_parts.get('method', '-')} {request_parts.get('path', '-')} -> {d['status']}"
+        )
 
         # Extract user if authenticated
         if d["user"] != "-":
@@ -179,11 +181,11 @@ class NginxErrorParser(BaseParser):
 
     # Nginx error log pattern
     PATTERN = re.compile(
-        r'^(?P<timestamp>\d{4}/\d{2}/\d{2}\s+\d{2}:\d{2}:\d{2})\s+'  # Timestamp
-        r'\[(?P<level>\w+)\]\s+'                                       # Level in brackets
-        r'(?P<pid>\d+)#(?P<tid>\d+):\s*'                               # PID#TID
-        r'(?:\*(?P<cid>\d+)\s+)?'                                      # Optional connection ID
-        r'(?P<message>.*)'                                             # Message
+        r"^(?P<timestamp>\d{4}/\d{2}/\d{2}\s+\d{2}:\d{2}:\d{2})\s+"  # Timestamp
+        r"\[(?P<level>\w+)\]\s+"  # Level in brackets
+        r"(?P<pid>\d+)#(?P<tid>\d+):\s*"  # PID#TID
+        r"(?:\*(?P<cid>\d+)\s+)?"  # Optional connection ID
+        r"(?P<message>.*)"  # Message
     )
 
     # Level mapping for Nginx

@@ -78,9 +78,7 @@ class CorrelationStrategy(ABC):
 
     @abstractmethod
     def correlate(
-        self,
-        entries: Iterator[LogEntry] | list[LogEntry],
-        buffer_size: int = 10000
+        self, entries: Iterator[LogEntry] | list[LogEntry], buffer_size: int = 10000
     ) -> Iterator[CorrelationGroup]:
         """
         Correlate entries using this strategy.

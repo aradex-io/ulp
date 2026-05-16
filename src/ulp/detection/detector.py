@@ -61,9 +61,7 @@ class FormatDetector:
             }
 
     def detect(
-        self,
-        lines: Iterator[str] | list[str],
-        sample_size: int | None = None
+        self, lines: Iterator[str] | list[str], sample_size: int | None = None
     ) -> tuple[str, float]:
         """
         Detect format from lines.
@@ -132,9 +130,7 @@ class FormatDetector:
             return ("unknown", 0.0)
 
     def detect_all(
-        self,
-        lines: Iterator[str] | list[str],
-        sample_size: int | None = None
+        self, lines: Iterator[str] | list[str], sample_size: int | None = None
     ) -> list[tuple[str, float]]:
         """
         Get all matching formats ranked by confidence.
@@ -170,10 +166,7 @@ class FormatDetector:
 
         max_score = max(scores.values())
 
-        results = [
-            (name, min(1.0, score / max(max_score, 1.0)))
-            for name, score in scores.items()
-        ]
+        results = [(name, min(1.0, score / max(max_score, 1.0))) for name, score in scores.items()]
 
         return sorted(results, key=lambda x: x[1], reverse=True)
 

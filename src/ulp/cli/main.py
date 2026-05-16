@@ -47,38 +47,36 @@ def cli(ctx: click.Context, quiet: bool) -> None:
 @cli.command()
 @click.argument("files", nargs=-1, type=click.Path(exists=True, allow_dash=True))
 @click.option(
-    "--format", "-f", "log_format",
-    help="Force a specific log format (skip auto-detection)"
+    "--format", "-f", "log_format", help="Force a specific log format (skip auto-detection)"
 )
 @click.option(
-    "--output", "-o", "output_format",
+    "--output",
+    "-o",
+    "output_format",
     type=click.Choice(["table", "json", "csv", "compact"]),
     default="table",
-    help="Output format (default: table)"
+    help="Output format (default: table)",
 )
 @click.option(
-    "--level", "-l",
+    "--level",
+    "-l",
     type=click.Choice(
         ["trace", "debug", "info", "notice", "warning", "error", "critical", "alert", "emergency"],
         case_sensitive=False,
     ),
-    help="Filter by minimum log level"
+    help="Filter by minimum log level",
 )
 @click.option(
-    "--limit", "-n", type=click.IntRange(min=1),
-    help="Limit number of entries to display"
+    "--limit", "-n", type=click.IntRange(min=1), help="Limit number of entries to display"
+)
+@click.option("--grep", "-g", help="Filter entries by message content (regex)")
+@click.option(
+    "--ignore-case", "-i", is_flag=True, default=False, help="Case-insensitive --grep matching"
 )
 @click.option(
-    "--grep", "-g",
-    help="Filter entries by message content (regex)"
-)
-@click.option(
-    "--ignore-case", "-i", is_flag=True, default=False,
-    help="Case-insensitive --grep matching"
-)
-@click.option(
-    "--normalize/--no-normalize", default=False,
-    help="Apply normalization pipeline (timestamps to UTC, level normalization)"
+    "--normalize/--no-normalize",
+    default=False,
+    help="Apply normalization pipeline (timestamps to UTC, level normalization)",
 )
 @click.pass_context
 def parse(
@@ -128,25 +126,28 @@ def parse(
 
 @cli.command()
 @click.argument("files", nargs=-1, type=click.Path(exists=True, allow_dash=True), required=True)
+@click.option("--format", "-f", "log_format", help="Force a specific log format for all files")
 @click.option(
-    "--format", "-f", "log_format",
-    help="Force a specific log format for all files"
-)
-@click.option(
-    "--strategy", "-s",
+    "--strategy",
+    "-s",
     type=click.Choice(["request_id", "timestamp", "session", "all"]),
     default="all",
-    help="Correlation strategy (default: all)"
+    help="Correlation strategy (default: all)",
 )
 @click.option(
-    "--window", "-w", type=click.FloatRange(min=0.0, min_open=True), default=1.0,
-    help="Time window in seconds for timestamp correlation (default: 1.0)"
+    "--window",
+    "-w",
+    type=click.FloatRange(min=0.0, min_open=True),
+    default=1.0,
+    help="Time window in seconds for timestamp correlation (default: 1.0)",
 )
 @click.option(
-    "--output", "-o", "output_format",
+    "--output",
+    "-o",
+    "output_format",
     type=click.Choice(["table", "json"]),
     default="table",
-    help="Output format (default: table)"
+    help="Output format (default: table)",
 )
 @click.pass_context
 def correlate(
@@ -190,19 +191,21 @@ def correlate(
 @cli.command()
 @click.argument("file", type=click.Path(exists=True, allow_dash=True))
 @click.option(
-    "--format", "-f", "log_format", required=True,
-    help="Log format (required - no auto-detection in stream mode)"
+    "--format",
+    "-f",
+    "log_format",
+    required=True,
+    help="Log format (required - no auto-detection in stream mode)",
 )
 @click.option(
-    "--output", "-o", "output_format",
+    "--output",
+    "-o",
+    "output_format",
     type=click.Choice(["compact", "json"]),
     default="compact",
-    help="Output format (default: compact for streaming)"
+    help="Output format (default: compact for streaming)",
 )
-@click.option(
-    "--progress/--no-progress", default=True,
-    help="Show progress indicator"
-)
+@click.option("--progress/--no-progress", default=True, help="Show progress indicator")
 @click.pass_context
 def stream(
     ctx: click.Context,
@@ -240,8 +243,7 @@ def stream(
 @cli.command()
 @click.argument("files", nargs=-1, type=click.Path(exists=True, allow_dash=True))
 @click.option(
-    "--all", "-a", "show_all", is_flag=True,
-    help="Show all matching formats with confidence scores"
+    "--all", "-a", "show_all", is_flag=True, help="Show all matching formats with confidence scores"
 )
 @click.pass_context
 def detect(

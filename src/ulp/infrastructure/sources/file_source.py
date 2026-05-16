@@ -68,12 +68,7 @@ class FileStreamSource:
         Raises:
             LineTooLongError: If a line exceeds MAX_LINE_LENGTH
         """
-        with open(
-            self.path,
-            "r",
-            encoding=self.encoding,
-            errors=self.errors
-        ) as f:
+        with open(self.path, "r", encoding=self.encoding, errors=self.errors) as f:
             for line in f:
                 stripped = line.rstrip("\n\r")
                 # H1: Validate line length
@@ -159,12 +154,7 @@ class LargeFileStreamSource:
 
     def _read_lines_regular(self) -> Iterator[str]:
         """Read using standard file iteration."""
-        with open(
-            self.path,
-            "r",
-            encoding=self.encoding,
-            errors=self.errors
-        ) as f:
+        with open(self.path, "r", encoding=self.encoding, errors=self.errors) as f:
             for line in f:
                 stripped = line.rstrip("\n\r")
                 # H1: Validate line length
@@ -280,12 +270,7 @@ class ChunkedFileStreamSource:
         bytes_read = 0
         lines_read = 0
 
-        with open(
-            self.path,
-            "r",
-            encoding=self.encoding,
-            errors=self.errors
-        ) as f:
+        with open(self.path, "r", encoding=self.encoding, errors=self.errors) as f:
             for line in f:
                 bytes_read += len(line.encode(self.encoding, errors="replace"))
                 lines_read += 1
@@ -296,15 +281,8 @@ class ChunkedFileStreamSource:
                 yield stripped
 
                 # Report progress
-                if (
-                    self.progress_callback and
-                    lines_read % self.callback_interval == 0
-                ):
-                    self.progress_callback(
-                        bytes_read,
-                        self._file_size,
-                        lines_read
-                    )
+                if self.progress_callback and lines_read % self.callback_interval == 0:
+                    self.progress_callback(bytes_read, self._file_size, lines_read)
 
         # Final progress callback (skip when file is empty to avoid division by zero
         # in naive callers that compute pct = bytes_read / total_bytes)

@@ -26,13 +26,13 @@ class ApacheCommonParser(BaseParser):
 
     # Pattern for Common Log Format
     PATTERN = re.compile(
-        r'^(?P<ip>\S+)\s+'            # Client IP
-        r'(?P<ident>\S+)\s+'           # Ident (usually -)
-        r'(?P<user>\S+)\s+'            # Auth user (usually -)
-        r'\[(?P<timestamp>[^\]]+)\]\s+' # Timestamp in brackets
+        r"^(?P<ip>\S+)\s+"  # Client IP
+        r"(?P<ident>\S+)\s+"  # Ident (usually -)
+        r"(?P<user>\S+)\s+"  # Auth user (usually -)
+        r"\[(?P<timestamp>[^\]]+)\]\s+"  # Timestamp in brackets
         r'"(?P<request>(?:[^"\\]|\\.)*)"\s+'  # Request line in quotes (escaped-quote safe)
-        r'(?P<status>\d+)\s+'          # Status code
-        r'(?P<size>\S+)'               # Response size (or -)
+        r"(?P<status>\d+)\s+"  # Status code
+        r"(?P<size>\S+)"  # Response size (or -)
     )
 
     def parse_line(self, line: str) -> LogEntry:
@@ -77,7 +77,9 @@ class ApacheCommonParser(BaseParser):
         entry.level = self._level_from_status(entry.http.status_code)
 
         # Build message
-        entry.message = f"{request_parts.get('method', '-')} {request_parts.get('path', '-')} -> {d['status']}"
+        entry.message = (
+            f"{request_parts.get('method', '-')} {request_parts.get('path', '-')} -> {d['status']}"
+        )
 
         # Extract user if authenticated
         if d["user"] != "-":
@@ -176,13 +178,13 @@ class ApacheCombinedParser(ApacheCommonParser):
 
     # Pattern for Combined Log Format
     PATTERN = re.compile(
-        r'^(?P<ip>\S+)\s+'            # Client IP
-        r'(?P<ident>\S+)\s+'           # Ident (usually -)
-        r'(?P<user>\S+)\s+'            # Auth user (usually -)
-        r'\[(?P<timestamp>[^\]]+)\]\s+' # Timestamp in brackets
+        r"^(?P<ip>\S+)\s+"  # Client IP
+        r"(?P<ident>\S+)\s+"  # Ident (usually -)
+        r"(?P<user>\S+)\s+"  # Auth user (usually -)
+        r"\[(?P<timestamp>[^\]]+)\]\s+"  # Timestamp in brackets
         r'"(?P<request>(?:[^"\\]|\\.)*)"\s+'  # Request line in quotes (escaped-quote safe)
-        r'(?P<status>\d+)\s+'          # Status code
-        r'(?P<size>\S+)\s+'            # Response size (or -)
+        r"(?P<status>\d+)\s+"  # Status code
+        r"(?P<size>\S+)\s+"  # Response size (or -)
         r'"(?P<referer>(?:[^"\\]|\\.)*)"\s+'  # Referer in quotes (escaped-quote safe)
         r'"(?P<user_agent>(?:[^"\\]|\\.)*)"'  # User-Agent in quotes (escaped-quote safe)
     )
@@ -234,7 +236,9 @@ class ApacheCombinedParser(ApacheCommonParser):
         entry.level = self._level_from_status(entry.http.status_code)
 
         # Build message
-        entry.message = f"{request_parts.get('method', '-')} {request_parts.get('path', '-')} -> {d['status']}"
+        entry.message = (
+            f"{request_parts.get('method', '-')} {request_parts.get('path', '-')} -> {d['status']}"
+        )
 
         # Extract user if authenticated
         if d["user"] != "-":
@@ -251,7 +255,9 @@ class ApacheCombinedParser(ApacheCommonParser):
 
         # If Combined matches, return high confidence
         if combined_matches > 0:
-            return min(1.0, (combined_matches / len(sample)) * 1.1)  # Slight boost over Common, capped at 1.0
+            return min(
+                1.0, (combined_matches / len(sample)) * 1.1
+            )  # Slight boost over Common, capped at 1.0
 
         # Fall back to Common format matching
         return super().can_parse(sample) * 0.9

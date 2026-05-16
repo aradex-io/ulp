@@ -47,6 +47,7 @@ class TimestampNormalizer(NormalizationStep):
             # For non-UTC, would need pytz or zoneinfo (Python 3.9+)
             try:
                 from zoneinfo import ZoneInfo
+
                 self._tz = ZoneInfo(target_tz)
             except ImportError:
                 # Fallback to UTC
@@ -108,11 +109,11 @@ class LevelNormalizer(NormalizationStep):
         "0": LogLevel.CRITICAL,  # emergency
         "1": LogLevel.CRITICAL,  # alert
         "2": LogLevel.CRITICAL,  # critical
-        "3": LogLevel.ERROR,     # error
-        "4": LogLevel.WARNING,   # warning
-        "5": LogLevel.INFO,      # notice
-        "6": LogLevel.INFO,      # info
-        "7": LogLevel.DEBUG,     # debug
+        "3": LogLevel.ERROR,  # error
+        "4": LogLevel.WARNING,  # warning
+        "5": LogLevel.INFO,  # notice
+        "6": LogLevel.INFO,  # info
+        "7": LogLevel.DEBUG,  # debug
     }
 
     @property
@@ -172,9 +173,7 @@ class FieldNormalizer(NormalizationStep):
     }
 
     def __init__(
-        self,
-        field_mappings: dict[str, list[str]] | None = None,
-        preserve_original: bool = True
+        self, field_mappings: dict[str, list[str]] | None = None, preserve_original: bool = True
     ):
         """
         Initialize field normalizer.
@@ -230,10 +229,7 @@ class HostnameEnricher(NormalizationStep):
     """
 
     def __init__(
-        self,
-        ip_fields: list[str] | None = None,
-        cache_size: int = 1000,
-        timeout: float = 0.5
+        self, ip_fields: list[str] | None = None, cache_size: int = 1000, timeout: float = 0.5
     ):
         """
         Initialize hostname enricher.
@@ -301,7 +297,7 @@ class HostnameEnricher(NormalizationStep):
         if len(self._cache) >= self.cache_size:
             # Simple cache eviction: clear oldest half
             keys = list(self._cache.keys())
-            for k in keys[:len(keys)//2]:
+            for k in keys[: len(keys) // 2]:
                 del self._cache[k]
 
         self._cache[ip] = hostname
@@ -310,12 +306,12 @@ class HostnameEnricher(NormalizationStep):
     def _is_valid_ip(self, ip: str) -> bool:
         """Basic IP address validation."""
         # IPv4 pattern
-        ipv4_pattern = r'^(\d{1,3}\.){3}\d{1,3}$'
+        ipv4_pattern = r"^(\d{1,3}\.){3}\d{1,3}$"
         if re.match(ipv4_pattern, ip):
-            parts = ip.split('.')
+            parts = ip.split(".")
             return all(0 <= int(p) <= 255 for p in parts)
         # IPv6 would need more complex validation
-        return ':' in ip  # Basic IPv6 check
+        return ":" in ip  # Basic IPv6 check
 
 
 class GeoIPEnricher(NormalizationStep):
@@ -329,11 +325,7 @@ class GeoIPEnricher(NormalizationStep):
         # entry with ip="8.8.8.8" gets country="US", city="Mountain View"
     """
 
-    def __init__(
-        self,
-        database_path: str | None = None,
-        ip_fields: list[str] | None = None
-    ):
+    def __init__(self, database_path: str | None = None, ip_fields: list[str] | None = None):
         """
         Initialize GeoIP enricher.
 
@@ -357,12 +349,14 @@ class GeoIPEnricher(NormalizationStep):
 
         try:
             import maxminddb
+
             self._reader = maxminddb.open_database(self.database_path)
             self._available = True
         except ImportError:
             # Try geoip2 as fallback
             try:
                 import geoip2.database
+
                 self._reader = geoip2.database.Reader(self.database_path)
                 self._available = True
             except ImportError:

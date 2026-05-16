@@ -128,13 +128,11 @@ class DockerDaemonParser(BaseParser):
     # Pattern for Docker daemon logs (logfmt-style).
     # The msg field uses ((?:[^"\\]|\\.)*) to handle escaped quotes inside the
     # value; the captured string must be unescaped before use.
-    DAEMON_PATTERN = re.compile(
-        r'^time="([^"]+)"\s+level=(\w+)\s+msg="((?:[^"\\]|\\.)*)"(.*)$'
-    )
+    DAEMON_PATTERN = re.compile(r'^time="([^"]+)"\s+level=(\w+)\s+msg="((?:[^"\\]|\\.)*)"(.*)$')
 
     # Alternative pattern for systemd journal format
     SYSTEMD_PATTERN = re.compile(
-        r'^(\w{3}\s+\d+\s+\d+:\d+:\d+)\s+(\S+)\s+dockerd\[(\d+)\]:\s+(.*)$'
+        r"^(\w{3}\s+\d+\s+\d+:\d+:\d+)\s+(\S+)\s+dockerd\[(\d+)\]:\s+(.*)$"
     )
 
     def parse_line(self, line: str) -> LogEntry:
@@ -160,7 +158,7 @@ class DockerDaemonParser(BaseParser):
         timestamp_str, level_str, message, extra = match.groups()
 
         # Unescape backslash sequences captured by the msg pattern
-        message = message.replace('\\"', '"').replace('\\\\', '\\')
+        message = message.replace('\\"', '"').replace("\\\\", "\\")
 
         entry.format_detected = "docker_daemon"
         entry.parser_confidence = 1.0
@@ -246,7 +244,7 @@ class DockerDaemonParser(BaseParser):
                 matches += 1
             elif self.SYSTEMD_PATTERN.match(line):
                 matches += 0.8  # Slightly lower confidence for systemd format
-            elif 'dockerd' in line.lower() or 'level=' in line:
+            elif "dockerd" in line.lower() or "level=" in line:
                 matches += 0.3
 
         if not sample:

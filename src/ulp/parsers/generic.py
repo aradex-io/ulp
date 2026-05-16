@@ -27,19 +27,22 @@ class GenericParser(BaseParser):
     # Common timestamp patterns to try
     TIMESTAMP_PATTERNS = [
         # ISO 8601
-        (r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?)\s*', "%Y-%m-%dT%H:%M:%S"),
+        (
+            r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?)\s*",
+            "%Y-%m-%dT%H:%M:%S",
+        ),
         # Common datetime
-        (r'^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(?:[,\.]\d+)?)\s*', "%Y-%m-%d %H:%M:%S"),
+        (r"^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(?:[,\.]\d+)?)\s*", "%Y-%m-%d %H:%M:%S"),
         # Date with slashes
-        (r'^(\d{4}/\d{2}/\d{2}\s+\d{2}:\d{2}:\d{2})\s*', "%Y/%m/%d %H:%M:%S"),
+        (r"^(\d{4}/\d{2}/\d{2}\s+\d{2}:\d{2}:\d{2})\s*", "%Y/%m/%d %H:%M:%S"),
         # US format
-        (r'^(\d{2}/\d{2}/\d{4}\s+\d{2}:\d{2}:\d{2})\s*', "%m/%d/%Y %H:%M:%S"),
+        (r"^(\d{2}/\d{2}/\d{4}\s+\d{2}:\d{2}:\d{2})\s*", "%m/%d/%Y %H:%M:%S"),
         # Time only
-        (r'^(\d{2}:\d{2}:\d{2}(?:\.\d+)?)\s*', "%H:%M:%S"),
+        (r"^(\d{2}:\d{2}:\d{2}(?:\.\d+)?)\s*", "%H:%M:%S"),
         # Unix timestamp (milliseconds) - must come before 10-digit to avoid prefix match
-        (r'^(\d{13})\s*', "unix_ms"),
+        (r"^(\d{13})\s*", "unix_ms"),
         # Unix timestamp (seconds) - non-digit lookahead prevents matching 13-digit timestamps
-        (r'^(\d{10})(?!\d)\s*', "unix"),
+        (r"^(\d{10})(?!\d)\s*", "unix"),
     ]
 
     # Compile patterns
@@ -47,14 +50,14 @@ class GenericParser(BaseParser):
 
     # Level keywords to search for
     LEVEL_PATTERNS = [
-        (re.compile(r'\b(EMERG|EMERGENCY)\b', re.I), LogLevel.EMERGENCY),
-        (re.compile(r'\b(ALERT)\b', re.I), LogLevel.ALERT),
-        (re.compile(r'\b(CRIT|CRITICAL|FATAL)\b', re.I), LogLevel.CRITICAL),
-        (re.compile(r'\b(ERR|ERROR)\b', re.I), LogLevel.ERROR),
-        (re.compile(r'\b(WARN|WARNING)\b', re.I), LogLevel.WARNING),
-        (re.compile(r'\b(NOTICE)\b', re.I), LogLevel.NOTICE),
-        (re.compile(r'\b(INFO)\b', re.I), LogLevel.INFO),
-        (re.compile(r'\b(DEBUG|TRACE|VERBOSE)\b', re.I), LogLevel.DEBUG),
+        (re.compile(r"\b(EMERG|EMERGENCY)\b", re.I), LogLevel.EMERGENCY),
+        (re.compile(r"\b(ALERT)\b", re.I), LogLevel.ALERT),
+        (re.compile(r"\b(CRIT|CRITICAL|FATAL)\b", re.I), LogLevel.CRITICAL),
+        (re.compile(r"\b(ERR|ERROR)\b", re.I), LogLevel.ERROR),
+        (re.compile(r"\b(WARN|WARNING)\b", re.I), LogLevel.WARNING),
+        (re.compile(r"\b(NOTICE)\b", re.I), LogLevel.NOTICE),
+        (re.compile(r"\b(INFO)\b", re.I), LogLevel.INFO),
+        (re.compile(r"\b(DEBUG|TRACE|VERBOSE)\b", re.I), LogLevel.DEBUG),
     ]
 
     def parse_line(self, line: str) -> LogEntry:
@@ -75,7 +78,7 @@ class GenericParser(BaseParser):
                 entry.timestamp = self._parse_generic_timestamp(ts_str, fmt)
                 if entry.timestamp:
                     # Remove timestamp from message
-                    message = stripped[match.end():].strip()
+                    message = stripped[match.end() :].strip()
                     entry.timestamp_precision = "s"
                     entry.parser_confidence = 0.5
                     break

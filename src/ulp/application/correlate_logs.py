@@ -20,6 +20,7 @@ def _normalize_ts(ts: datetime | None) -> datetime:
         return ts.replace(tzinfo=timezone.utc)
     return ts
 
+
 __all__ = ["CorrelateLogsUseCase"]
 
 
@@ -50,11 +51,7 @@ class CorrelateLogsUseCase:
             print(f"Request {group.correlation_key}: {len(group.entries)} entries")
     """
 
-    def __init__(
-        self,
-        strategies: list[CorrelationStrategy],
-        window_size: int = 10000
-    ):
+    def __init__(self, strategies: list[CorrelationStrategy], window_size: int = 10000):
         """
         Initialize the use case.
 
@@ -65,10 +62,7 @@ class CorrelateLogsUseCase:
         self.strategies = strategies
         self.window_size = window_size
 
-    def execute(
-        self,
-        sources: list[Iterator[LogEntry]]
-    ) -> CorrelationResult:
+    def execute(self, sources: list[Iterator[LogEntry]]) -> CorrelationResult:
         """
         Execute correlation across sources.
 
@@ -92,9 +86,9 @@ class CorrelateLogsUseCase:
         # mixed naive/aware sources don't raise TypeError during comparison.
         # Original entries are not mutated; we work with shallow copies here.
         strategy_entries = [
-            replace(e, timestamp=_normalize_ts(e.timestamp)) if (
-                e.timestamp is not None and e.timestamp.tzinfo is None
-            ) else e
+            replace(e, timestamp=_normalize_ts(e.timestamp))
+            if (e.timestamp is not None and e.timestamp.tzinfo is None)
+            else e
             for e in all_entries
         ]
 
@@ -119,9 +113,7 @@ class CorrelateLogsUseCase:
         )
 
     def execute_streaming(
-        self,
-        sources: list[Iterator[LogEntry]],
-        strategy: CorrelationStrategy
+        self, sources: list[Iterator[LogEntry]], strategy: CorrelationStrategy
     ) -> Iterator[CorrelationGroup]:
         """
         Execute streaming correlation with a single strategy.
@@ -141,10 +133,7 @@ class CorrelateLogsUseCase:
         merged = self._merge_sources(sources)
         yield from strategy.correlate(merged, self.window_size)
 
-    def _merge_sources(
-        self,
-        sources: list[Iterator[LogEntry]]
-    ) -> Iterator[LogEntry]:
+    def _merge_sources(self, sources: list[Iterator[LogEntry]]) -> Iterator[LogEntry]:
         """
         Merge multiple sources, ordered by timestamp.
 
@@ -174,7 +163,9 @@ class CorrelateLogsUseCase:
             # Get next entry from same source
             try:
                 next_entry = next(source)
-                heapq.heappush(heap, (_normalize_ts(next_entry.timestamp), source_id, next_entry, source))
+                heapq.heappush(
+                    heap, (_normalize_ts(next_entry.timestamp), source_id, next_entry, source)
+                )
             except StopIteration:
                 pass  # Source exhausted
 
@@ -190,10 +181,7 @@ class MultiStrategyCorrelation:
     def __init__(self, strategies: list[CorrelationStrategy]):
         self.strategies = strategies
 
-    def correlate(
-        self,
-        entries: list[LogEntry]
-    ) -> tuple[list[CorrelationGroup], list[LogEntry]]:
+    def correlate(self, entries: list[LogEntry]) -> tuple[list[CorrelationGroup], list[LogEntry]]:
         """
         Apply all strategies and return groups + orphans.
 

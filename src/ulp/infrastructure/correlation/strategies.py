@@ -84,9 +84,7 @@ class RequestIdCorrelation(CorrelationStrategy):
         return False
 
     def correlate(
-        self,
-        entries: Iterator[LogEntry] | list[LogEntry],
-        buffer_size: int = 10000
+        self, entries: Iterator[LogEntry] | list[LogEntry], buffer_size: int = 10000
     ) -> Iterator[CorrelationGroup]:
         """
         Group entries by shared correlation IDs.
@@ -151,20 +149,13 @@ class RequestIdCorrelation(CorrelationStrategy):
 
         return None
 
-    def _emit_groups(
-        self,
-        id_groups: dict[str, list[LogEntry]]
-    ) -> Iterator[CorrelationGroup]:
+    def _emit_groups(self, id_groups: dict[str, list[LogEntry]]) -> Iterator[CorrelationGroup]:
         """Convert ID groups to CorrelationGroup objects."""
         for correlation_key, entries in id_groups.items():
             if len(entries) > 1:  # Only emit groups with multiple entries
                 yield self._create_group(correlation_key, entries)
 
-    def _create_group(
-        self,
-        correlation_key: str,
-        entries: list[LogEntry]
-    ) -> CorrelationGroup:
+    def _create_group(self, correlation_key: str, entries: list[LogEntry]) -> CorrelationGroup:
         """Create a CorrelationGroup from entries."""
         # Calculate time range (use _normalize_ts as sort key so mixed naive/aware sources don't crash)
         timestamps = [e.timestamp for e in entries if e.timestamp]
@@ -202,7 +193,7 @@ class TimestampWindowCorrelation(CorrelationStrategy):
         self,
         window_seconds: float = 1.0,
         min_group_size: int = 2,
-        require_multiple_sources: bool = True
+        require_multiple_sources: bool = True,
     ):
         """
         Initialize timestamp window correlation.
@@ -226,9 +217,7 @@ class TimestampWindowCorrelation(CorrelationStrategy):
         return True
 
     def correlate(
-        self,
-        entries: Iterator[LogEntry] | list[LogEntry],
-        buffer_size: int = 10000
+        self, entries: Iterator[LogEntry] | list[LogEntry], buffer_size: int = 10000
     ) -> Iterator[CorrelationGroup]:
         """
         Group entries by temporal proximity.
@@ -280,10 +269,7 @@ class TimestampWindowCorrelation(CorrelationStrategy):
             if group:
                 yield group
 
-    def _maybe_create_group(
-        self,
-        entries: list[LogEntry]
-    ) -> CorrelationGroup | None:
+    def _maybe_create_group(self, entries: list[LogEntry]) -> CorrelationGroup | None:
         """Create group if it meets criteria."""
         if len(entries) < self.min_group_size:
             return None
@@ -296,7 +282,8 @@ class TimestampWindowCorrelation(CorrelationStrategy):
         timestamps = [e.timestamp for e in entries if e.timestamp]
         time_range = (
             (min(timestamps, key=_normalize_ts), max(timestamps, key=_normalize_ts))
-            if timestamps else None
+            if timestamps
+            else None
         )
 
         # Use time range as correlation key
@@ -358,9 +345,7 @@ class SessionCorrelation(CorrelationStrategy):
         return False  # Need to track session state
 
     def correlate(
-        self,
-        entries: Iterator[LogEntry] | list[LogEntry],
-        buffer_size: int = 10000
+        self, entries: Iterator[LogEntry] | list[LogEntry], buffer_size: int = 10000
     ) -> Iterator[CorrelationGroup]:
         """
         Group entries by session.
@@ -398,9 +383,9 @@ class SessionCorrelation(CorrelationStrategy):
 
             # Check for session timeout (normalize tz so mixed naive/aware sources don't crash)
             if (
-                last_ts and
-                entry.timestamp and
-                _normalize_ts(entry.timestamp) - _normalize_ts(last_ts) > self.session_timeout
+                last_ts
+                and entry.timestamp
+                and _normalize_ts(entry.timestamp) - _normalize_ts(last_ts) > self.session_timeout
             ):
                 # Emit old session, start new
                 if len(session_entries) >= 2:
@@ -431,16 +416,13 @@ class SessionCorrelation(CorrelationStrategy):
 
         return None
 
-    def _create_group(
-        self,
-        session_key: str,
-        entries: list[LogEntry]
-    ) -> CorrelationGroup:
+    def _create_group(self, session_key: str, entries: list[LogEntry]) -> CorrelationGroup:
         """Create a session group."""
         timestamps = [e.timestamp for e in entries if e.timestamp]
         time_range = (
             (min(timestamps, key=_normalize_ts), max(timestamps, key=_normalize_ts))
-            if timestamps else None
+            if timestamps
+            else None
         )
         sources = {e.source.file_path or "<unknown>" for e in entries}
 

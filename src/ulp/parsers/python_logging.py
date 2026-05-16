@@ -26,43 +26,41 @@ class PythonLoggingParser(BaseParser):
     supported_formats = ["python_logging", "python_default", "python"]
 
     # Level alternation covers standard names plus WARN, NOTSET, FATAL aliases
-    _LEVEL_ALT = r'DEBUG|INFO|WARN(?:ING)?|ERROR|CRITICAL|NOTSET|FATAL'
+    _LEVEL_ALT = r"DEBUG|INFO|WARN(?:ING)?|ERROR|CRITICAL|NOTSET|FATAL"
 
     # Primary pattern: timestamp - name - level - message
     PATTERN_FULL = re.compile(
-        r'^(?P<timestamp>\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}[,\.]\d{3})\s+'
-        r'[-:]\s*'
-        r'(?P<name>\S+)\s+'
-        r'[-:]\s*'
-        r'(?P<level>' + _LEVEL_ALT + r')\s+'
-        r'[-:]\s*'
-        r'(?P<message>.*)'
+        r"^(?P<timestamp>\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}[,\.]\d{3})\s+"
+        r"[-:]\s*"
+        r"(?P<name>\S+)\s+"
+        r"[-:]\s*"
+        r"(?P<level>" + _LEVEL_ALT + r")\s+"
+        r"[-:]\s*"
+        r"(?P<message>.*)"
     )
 
     # Alternate pattern: timestamp level name message
     PATTERN_ALT = re.compile(
-        r'^(?P<timestamp>\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}[,\.]\d{3})\s+'
-        r'(?P<level>' + _LEVEL_ALT + r')\s+'
-        r'(?P<name>\S+)\s+'
-        r'(?P<message>.*)'
+        r"^(?P<timestamp>\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}[,\.]\d{3})\s+"
+        r"(?P<level>" + _LEVEL_ALT + r")\s+"
+        r"(?P<name>\S+)\s+"
+        r"(?P<message>.*)"
     )
 
     # Simple pattern: LEVEL:name:message
-    PATTERN_SIMPLE = re.compile(
-        r'^(?P<level>' + _LEVEL_ALT + r'):(?P<name>\S+):(?P<message>.*)'
-    )
+    PATTERN_SIMPLE = re.compile(r"^(?P<level>" + _LEVEL_ALT + r"):(?P<name>\S+):(?P<message>.*)")
 
     # Pattern with thread info
     PATTERN_THREADED = re.compile(
-        r'^(?P<timestamp>\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}[,\.]\d{3})\s+'
-        r'[-:]\s*'
-        r'(?P<name>\S+)\s+'
-        r'[-:]\s*'
-        r'(?P<level>' + _LEVEL_ALT + r')\s+'
-        r'[-:]\s*'
-        r'\[(?P<thread>[^\]]+)\]\s+'
-        r'[-:]\s*'
-        r'(?P<message>.*)'
+        r"^(?P<timestamp>\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}[,\.]\d{3})\s+"
+        r"[-:]\s*"
+        r"(?P<name>\S+)\s+"
+        r"[-:]\s*"
+        r"(?P<level>" + _LEVEL_ALT + r")\s+"
+        r"[-:]\s*"
+        r"\[(?P<thread>[^\]]+)\]\s+"
+        r"[-:]\s*"
+        r"(?P<message>.*)"
     )
 
     def parse_line(self, line: str) -> LogEntry:
@@ -71,7 +69,12 @@ class PythonLoggingParser(BaseParser):
         entry.parser_name = self.name
 
         # Try patterns in order of specificity
-        for pattern in [self.PATTERN_THREADED, self.PATTERN_FULL, self.PATTERN_ALT, self.PATTERN_SIMPLE]:
+        for pattern in [
+            self.PATTERN_THREADED,
+            self.PATTERN_FULL,
+            self.PATTERN_ALT,
+            self.PATTERN_SIMPLE,
+        ]:
             match = pattern.match(line.strip())
             if match:
                 return self._build_entry(entry, match.groupdict())
@@ -116,10 +119,15 @@ class PythonLoggingParser(BaseParser):
         matches = 0
         for line in sample:
             line = line.strip()
-            if any(p.match(line) for p in [
-                self.PATTERN_THREADED, self.PATTERN_FULL,
-                self.PATTERN_ALT, self.PATTERN_SIMPLE
-            ]):
+            if any(
+                p.match(line)
+                for p in [
+                    self.PATTERN_THREADED,
+                    self.PATTERN_FULL,
+                    self.PATTERN_ALT,
+                    self.PATTERN_SIMPLE,
+                ]
+            ):
                 matches += 1
 
         return matches / len(sample)

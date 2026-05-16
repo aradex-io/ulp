@@ -165,15 +165,14 @@ class BaseParser(ABC):
         message_lower = message.lower()
 
         # Check for error indicators
-        if any(kw in message_lower for kw in [
-            "error", "exception", "failed", "failure", "fatal", "panic"
-        ]):
+        if any(
+            kw in message_lower
+            for kw in ["error", "exception", "failed", "failure", "fatal", "panic"]
+        ):
             return LogLevel.ERROR
 
         # Check for warning indicators
-        if any(kw in message_lower for kw in [
-            "warn", "warning", "deprecated", "caution"
-        ]):
+        if any(kw in message_lower for kw in ["warn", "warning", "deprecated", "caution"]):
             return LogLevel.WARNING
 
         # Check for debug indicators

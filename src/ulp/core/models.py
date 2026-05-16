@@ -31,6 +31,7 @@ class LogLevel(Enum):
 
     Supports comparison operators for filtering (e.g., level >= LogLevel.ERROR).
     """
+
     TRACE = 0
     DEBUG = 10
     INFO = 20
@@ -119,6 +120,7 @@ class LogLevel(Enum):
 @dataclass
 class LogSource:
     """Metadata about where a log entry originated."""
+
     file_path: str | None = None
     line_number: int | None = None
     hostname: str | None = None
@@ -135,6 +137,7 @@ class LogSource:
 @dataclass
 class NetworkInfo:
     """Network-related fields extracted from logs."""
+
     source_ip: str | None = None
     destination_ip: str | None = None
     source_port: int | None = None
@@ -151,6 +154,7 @@ class NetworkInfo:
 @dataclass
 class HTTPInfo:
     """HTTP-specific fields for web server logs."""
+
     method: str | None = None
     path: str | None = None
     query_string: str | None = None
@@ -167,6 +171,7 @@ class HTTPInfo:
 @dataclass
 class CorrelationIds:
     """IDs for correlating logs across systems."""
+
     request_id: str | None = None
     trace_id: str | None = None
     span_id: str | None = None
@@ -181,17 +186,28 @@ class CorrelationIds:
 
     def has_any_id(self) -> bool:
         """Check if any correlation ID is set."""
-        return any([
-            self.request_id, self.trace_id, self.span_id,
-            self.correlation_id, self.session_id, self.user_id,
-            self.transaction_id,
-        ])
+        return any(
+            [
+                self.request_id,
+                self.trace_id,
+                self.span_id,
+                self.correlation_id,
+                self.session_id,
+                self.user_id,
+                self.transaction_id,
+            ]
+        )
 
     def get_primary_id(self) -> tuple[str, str] | None:
         """Get the first non-None correlation ID as (field_name, value)."""
         for field_name in [
-            "request_id", "trace_id", "correlation_id", "transaction_id",
-            "span_id", "session_id", "user_id",
+            "request_id",
+            "trace_id",
+            "correlation_id",
+            "transaction_id",
+            "span_id",
+            "session_id",
+            "user_id",
         ]:
             value = getattr(self, field_name)
             if value:
@@ -207,6 +223,7 @@ class LogEntry:
     All format-specific parsers produce instances of this class.
     Fields are optional to accommodate different log types.
     """
+
     # Core fields
     id: UUID = field(default_factory=uuid4)
     raw: str = ""  # Original unparsed line
@@ -323,6 +340,7 @@ class LogEntry:
 @dataclass
 class ParseResult:
     """Result of parsing a log file or stream."""
+
     entries: list[LogEntry]
     format_detected: str = "unknown"
     confidence: float = 0.0
@@ -366,6 +384,7 @@ class FormatSignature:
     Defines how to recognize a log format.
     Used by the detection engine.
     """
+
     name: str
     description: str
 

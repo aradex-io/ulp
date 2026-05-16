@@ -13,14 +13,14 @@ __all__ = ["SyslogRFC3164Parser", "SyslogRFC5424Parser"]
 
 # Syslog severity to LogLevel mapping (RFC 5424)
 SYSLOG_SEVERITY = {
-    0: LogLevel.EMERGENCY,   # Emergency
-    1: LogLevel.ALERT,       # Alert
-    2: LogLevel.CRITICAL,    # Critical
-    3: LogLevel.ERROR,       # Error
-    4: LogLevel.WARNING,     # Warning
-    5: LogLevel.NOTICE,      # Notice
-    6: LogLevel.INFO,        # Informational
-    7: LogLevel.DEBUG,       # Debug
+    0: LogLevel.EMERGENCY,  # Emergency
+    1: LogLevel.ALERT,  # Alert
+    2: LogLevel.CRITICAL,  # Critical
+    3: LogLevel.ERROR,  # Error
+    4: LogLevel.WARNING,  # Warning
+    5: LogLevel.NOTICE,  # Notice
+    6: LogLevel.INFO,  # Informational
+    7: LogLevel.DEBUG,  # Debug
 }
 
 
@@ -41,19 +41,19 @@ class SyslogRFC3164Parser(BaseParser):
 
     # Pattern with optional priority
     PATTERN = re.compile(
-        r'^(?:<(?P<pri>\d{1,3})>)?'            # Optional priority
-        r'(?P<timestamp>[A-Z][a-z]{2}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})\s+'  # BSD timestamp
-        r'(?P<hostname>\S+)\s+'                 # Hostname
-        r'(?P<tag>\S+?)(?:\[(?P<pid>\d+)\])?:\s*'  # Tag with optional PID
-        r'(?P<message>.*)'                      # Message
+        r"^(?:<(?P<pri>\d{1,3})>)?"  # Optional priority
+        r"(?P<timestamp>[A-Z][a-z]{2}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})\s+"  # BSD timestamp
+        r"(?P<hostname>\S+)\s+"  # Hostname
+        r"(?P<tag>\S+?)(?:\[(?P<pid>\d+)\])?:\s*"  # Tag with optional PID
+        r"(?P<message>.*)"  # Message
     )
 
     # Alternate pattern for slightly different formats
     PATTERN_ALT = re.compile(
-        r'^(?:<(?P<pri>\d{1,3})>)?'
-        r'(?P<timestamp>[A-Z][a-z]{2}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})\s+'
-        r'(?P<hostname>\S+)\s+'
-        r'(?P<message>.*)'
+        r"^(?:<(?P<pri>\d{1,3})>)?"
+        r"(?P<timestamp>[A-Z][a-z]{2}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})\s+"
+        r"(?P<hostname>\S+)\s+"
+        r"(?P<message>.*)"
     )
 
     def parse_line(self, line: str) -> LogEntry:
@@ -156,14 +156,14 @@ class SyslogRFC5424Parser(BaseParser):
     # RFC 5424 pattern
     # SD field uses a quote-aware bracketed pattern to handle ] inside quoted values
     PATTERN = re.compile(
-        r'^<(?P<pri>\d{1,3})>(?P<version>\d+)\s+'           # Priority and version
-        r'(?P<timestamp>\S+)\s+'                            # ISO timestamp or NILVALUE
-        r'(?P<hostname>\S+)\s+'                             # Hostname
-        r'(?P<appname>\S+)\s+'                              # App name
-        r'(?P<procid>\S+)\s+'                               # Process ID
-        r'(?P<msgid>\S+)\s+'                                # Message ID
+        r"^<(?P<pri>\d{1,3})>(?P<version>\d+)\s+"  # Priority and version
+        r"(?P<timestamp>\S+)\s+"  # ISO timestamp or NILVALUE
+        r"(?P<hostname>\S+)\s+"  # Hostname
+        r"(?P<appname>\S+)\s+"  # App name
+        r"(?P<procid>\S+)\s+"  # Process ID
+        r"(?P<msgid>\S+)\s+"  # Message ID
         r'(?P<sd>-|(?:\[(?:[^\]"\\]|"(?:[^"\\]|\\.)*"|\\.)*\])+)\s*'  # Structured data (quote-aware)
-        r'(?P<message>.*)?'                                 # Message (optional)
+        r"(?P<message>.*)?"  # Message (optional)
     )
 
     def parse_line(self, line: str) -> LogEntry:
@@ -243,9 +243,7 @@ class SyslogRFC5424Parser(BaseParser):
         return "s"
 
     # Compiled SD patterns (hoisted to class level to avoid re-compiling per line)
-    _SD_ELEMENT_PATTERN = re.compile(
-        r'\[(?P<block>(?:[^\]"\\]|"(?:[^"\\]|\\.)*"|\\.)*)\]'
-    )
+    _SD_ELEMENT_PATTERN = re.compile(r'\[(?P<block>(?:[^\]"\\]|"(?:[^"\\]|\\.)*"|\\.)*)\]')
     _SD_PARAM_PATTERN = re.compile(r'(\S+)="((?:[^"\\]|\\.)*)"')
 
     def _parse_structured_data(self, sd: str) -> dict:
@@ -272,7 +270,7 @@ class SyslogRFC5424Parser(BaseParser):
                         key = param_match.group(1)
                         raw_val = param_match.group(2)
                         # Unescape RFC 5424 escape sequences
-                        val = raw_val.replace('\\"', '"').replace('\\\\', '\\').replace('\\]', ']')
+                        val = raw_val.replace('\\"', '"').replace("\\\\", "\\").replace("\\]", "]")
                         params[key] = val
 
                 result[sd_id] = params

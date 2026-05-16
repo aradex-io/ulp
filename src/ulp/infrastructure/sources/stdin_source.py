@@ -26,11 +26,7 @@ class StdinStreamSource:
             process(line)
     """
 
-    def __init__(
-        self,
-        encoding: str = "utf-8",
-        errors: str = "replace"
-    ):
+    def __init__(self, encoding: str = "utf-8", errors: str = "replace"):
         """
         Initialize stdin stream source.
 
@@ -90,12 +86,7 @@ class BufferedStdinSource:
             process(line)
     """
 
-    def __init__(
-        self,
-        peek_lines: int = 50,
-        encoding: str = "utf-8",
-        errors: str = "replace"
-    ):
+    def __init__(self, peek_lines: int = 50, encoding: str = "utf-8", errors: str = "replace"):
         """
         Initialize buffered stdin source.
 

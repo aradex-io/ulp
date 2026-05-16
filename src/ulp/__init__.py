@@ -201,14 +201,12 @@ def stream_parse(
 
     # Choose source based on file size
     from pathlib import Path
+
     file_size = Path(file_path).stat().st_size
 
     if file_size > 100 * 1024 * 1024:  # > 100MB
         if progress_callback:
-            source = ChunkedFileStreamSource(
-                file_path,
-                progress_callback=progress_callback
-            )
+            source = ChunkedFileStreamSource(file_path, progress_callback=progress_callback)
         else:
             source = LargeFileStreamSource(file_path)
     else:
@@ -258,6 +256,7 @@ def correlate(
 
     # Build correlation strategies (annotated as the abstract base so the list is variance-friendly)
     from ulp.domain.services import CorrelationStrategy
+
     strategies: list[CorrelationStrategy] = []
     if strategy == "request_id" or strategy == "all":
         strategies.append(RequestIdCorrelation())

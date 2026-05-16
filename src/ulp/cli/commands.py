@@ -84,10 +84,12 @@ def parse_command(
     # Create normalizer if requested
     normalizer = None
     if normalize:
-        normalizer = NormalizationPipeline([
-            TimestampNormalizer(target_tz="UTC"),
-            LevelNormalizer(),
-        ])
+        normalizer = NormalizationPipeline(
+            [
+                TimestampNormalizer(target_tz="UTC"),
+                LevelNormalizer(),
+            ]
+        )
 
     all_entries: list[LogEntry] = []
     had_failure = False
@@ -120,7 +122,7 @@ def parse_command(
 
                 # Show detection info
                 if not log_format and not quiet:
-                    sample = source.peek() if hasattr(source, 'peek') else []
+                    sample = source.peek() if hasattr(source, "peek") else []
                     if sample:
                         detected, confidence = detector.detect(sample)
                         console.print(
@@ -196,9 +198,7 @@ def correlate_command(
         Exit code
     """
     if len(files) < 2:
-        error_console.print(
-            "[red]Error:[/red] Correlation requires at least 2 files"
-        )
+        error_console.print("[red]Error:[/red] Correlation requires at least 2 files")
         return 1
 
     # Create adapters
@@ -239,9 +239,7 @@ def correlate_command(
             continue
 
     if len(entry_iterators) < 2:
-        error_console.print(
-            "[red]Error:[/red] Need at least 2 valid sources for correlation"
-        )
+        error_console.print("[red]Error:[/red] Need at least 2 valid sources for correlation")
         return 1
 
     # Execute correlation
@@ -260,6 +258,7 @@ def correlate_command(
 
     if output_format == "json":
         import json
+
         output = {
             "groups": [
                 {
@@ -281,6 +280,7 @@ def correlate_command(
     else:
         # Table format
         from rich.table import Table
+
         table = Table(title="Correlation Groups")
         table.add_column("Key", style="cyan")
         table.add_column("Type", style="green")
@@ -334,10 +334,7 @@ def stream_command(
         def on_progress(bytes_read: int, total_bytes: int, lines: int) -> None:
             if progress:
                 pct = bytes_read / total_bytes * 100
-                error_console.print(
-                    f"\r[dim]Progress: {pct:.1f}% ({lines:,} lines)[/dim]",
-                    end=""
-                )
+                error_console.print(f"\r[dim]Progress: {pct:.1f}% ({lines:,} lines)[/dim]", end="")
 
         if file_path == "-":
             source = StdinStreamSource()
@@ -358,6 +355,7 @@ def stream_command(
         for entry in use_case.execute(format_name=log_format):
             if output_format == "json":
                 import json
+
                 print(json.dumps(entry.to_dict(), default=str))
             else:
                 # Compact single-line output for streaming

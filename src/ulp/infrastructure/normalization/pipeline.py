@@ -31,11 +31,7 @@ class NormalizationPipeline(NormalizerPort):
             print(entry.timestamp)  # Always UTC
     """
 
-    def __init__(
-        self,
-        steps: list[NormalizationStep] | None = None,
-        stop_on_error: bool = False
-    ):
+    def __init__(self, steps: list[NormalizationStep] | None = None, stop_on_error: bool = False):
         """
         Initialize the normalization pipeline.
 
@@ -135,11 +131,7 @@ class ConditionalPipeline(NormalizerPort):
         self._rules: list[tuple[callable, NormalizationStep]] = []
         self._default_steps: list[NormalizationStep] = []
 
-    def when(
-        self,
-        condition: callable,
-        step: NormalizationStep
-    ) -> "ConditionalPipeline":
+    def when(self, condition: callable, step: NormalizationStep) -> "ConditionalPipeline":
         """
         Add a conditional step.
 

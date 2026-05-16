@@ -22,9 +22,15 @@ from ulp.core.models import (
 )
 
 __all__ = [
-    "LogLevel", "LogSource", "NetworkInfo", "HTTPInfo",
-    "CorrelationIds", "LogEntry", "ParseResult",
-    "CorrelationGroup", "CorrelationResult",
+    "LogLevel",
+    "LogSource",
+    "NetworkInfo",
+    "HTTPInfo",
+    "CorrelationIds",
+    "LogEntry",
+    "ParseResult",
+    "CorrelationGroup",
+    "CorrelationResult",
 ]
 
 
@@ -45,6 +51,7 @@ class CorrelationGroup:
     Created by correlation strategies when entries share a correlation ID
     or fall within a time window.
     """
+
     id: UUID = field(default_factory=uuid4)
     correlation_key: str = ""
     correlation_type: str = ""  # "request_id", "timestamp_window", "session"
@@ -57,8 +64,7 @@ class CorrelationGroup:
         """Calculate derived fields after initialization."""
         if not self.sources and self.entries:
             self.sources = {
-                e.source.file_path or e.source.service or "unknown"
-                for e in self.entries
+                e.source.file_path or e.source.service or "unknown" for e in self.entries
             }
 
         if not self.time_range and self.entries:
@@ -72,8 +78,7 @@ class CorrelationGroup:
     def timeline(self) -> list[LogEntry]:
         """Return entries sorted chronologically."""
         return sorted(
-            [e for e in self.entries if e.timestamp],
-            key=lambda e: _normalize_ts(e.timestamp)
+            [e for e in self.entries if e.timestamp], key=lambda e: _normalize_ts(e.timestamp)
         )
 
     def entry_count(self) -> int:
@@ -95,10 +100,9 @@ class CorrelationGroup:
             "correlation_type": self.correlation_type,
             "entry_count": self.entry_count(),
             "sources": list(self.sources),
-            "time_range": [
-                self.time_range[0].isoformat(),
-                self.time_range[1].isoformat()
-            ] if self.time_range else None,
+            "time_range": [self.time_range[0].isoformat(), self.time_range[1].isoformat()]
+            if self.time_range
+            else None,
             "duration_ms": self.duration_ms(),
             "metadata": self.metadata,
             "entries": [e.to_dict() for e in self.entries],
@@ -112,6 +116,7 @@ class CorrelationResult:
 
     Contains correlated groups and entries that couldn't be correlated.
     """
+
     groups: list[CorrelationGroup] = field(default_factory=list)
     orphan_entries: list[LogEntry] = field(default_factory=list)
     statistics: dict[str, Any] = field(default_factory=dict)

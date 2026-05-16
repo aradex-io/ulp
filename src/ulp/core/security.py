@@ -62,6 +62,7 @@ CSV_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
 # Security Exceptions
 # =============================================================================
 
+
 class SecurityValidationError(ULPError):
     """Raised when security validation fails."""
 
@@ -90,13 +91,14 @@ class LineTooLongError(SecurityValidationError):
             details={
                 "line_length": line_length,
                 "max_length": max_length,
-            }
+            },
         )
 
 
 # =============================================================================
 # Validation Functions
 # =============================================================================
+
 
 def validate_line_length(line: str, max_length: int = MAX_LINE_LENGTH) -> str:
     """
@@ -155,7 +157,9 @@ def validate_json_depth(data: Any, max_depth: int = MAX_JSON_DEPTH, current_dept
     return True
 
 
-def validate_regex_pattern(pattern: str, max_length: int = 1000, ignore_case: bool = False) -> re.Pattern:
+def validate_regex_pattern(
+    pattern: str, max_length: int = 1000, ignore_case: bool = False
+) -> re.Pattern:
     """
     Validate and compile a regex pattern safely.
 
@@ -193,9 +197,9 @@ def validate_regex_pattern(pattern: str, max_length: int = 1000, ignore_case: bo
         r"\([^)]*\+\)[^)]*\+",  # (a+)+ pattern
         r"\([^)]*\*\)[^)]*\*",  # (a*)* pattern
         # Extended ReDoS heuristics (HIGH-S-2)
-        r'\([^)]*\\w[\*\+][^)]*\)[\*\+]',   # (\w+)+ or similar
-        r'\([^)]*\|[^)]*\)[\*\+]',           # any alternation followed by quantifier
-        r'\(\[[^\]]+\][\*\+]\)[\*\+]',       # ([a-z]+)+
+        r"\([^)]*\\w[\*\+][^)]*\)[\*\+]",  # (\w+)+ or similar
+        r"\([^)]*\|[^)]*\)[\*\+]",  # any alternation followed by quantifier
+        r"\(\[[^\]]+\][\*\+]\)[\*\+]",  # ([a-z]+)+
     ]
 
     for dangerous in dangerous_patterns:
@@ -276,6 +280,7 @@ def safe_json_loads(s: str, max_depth: int = MAX_JSON_DEPTH):
         json.JSONDecodeError: If the string is not valid JSON.
     """
     import json
+
     seen = _scan_max_depth(s, max_depth=max_depth)
     if seen > max_depth:
         raise SecurityValidationError(

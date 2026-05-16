@@ -46,12 +46,12 @@ class KubernetesContainerParser(BaseParser):
     # The stream (stdout/stderr) and partial flag (F/P) are captured separately
     # via STREAM_PATTERN when present, and stored in entry.extra.
     TIMESTAMPED_PATTERN = re.compile(
-        r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)\s+(?:(?:stdout|stderr)\s+[FP]\s+)?(.*)$'
+        r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)\s+(?:(?:stdout|stderr)\s+[FP]\s+)?(.*)$"
     )
 
     # Captures stream and partial flag when present (for extra metadata)
     _STREAM_PATTERN = re.compile(
-        r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)\s+(stdout|stderr)\s+([FP])\s+(.*)$'
+        r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)\s+(stdout|stderr)\s+([FP])\s+(.*)$"
     )
 
     def __init__(self):
@@ -59,6 +59,7 @@ class KubernetesContainerParser(BaseParser):
         super().__init__()
         # For embedded JSON parsing
         from ulp.parsers.json_parser import JSONParser
+
         self._json_parser = JSONParser()
 
     def parse_line(self, line: str) -> LogEntry:
@@ -159,7 +160,7 @@ class KubernetesComponentParser(BaseParser):
     # klog format: LMMDD HH:MM:SS.UUUUUU PPPP file:line] message
     # L = log level (I/W/E/F)
     KLOG_PATTERN = re.compile(
-        r'^([IWEF])(\d{4})\s+(\d{2}:\d{2}:\d{2}\.\d+)\s+(\d+)\s+(\S+):(\d+)\]\s*(.*)$'
+        r"^([IWEF])(\d{4})\s+(\d{2}:\d{2}:\d{2}\.\d+)\s+(\d+)\s+(\S+):(\d+)\]\s*(.*)$"
     )
 
     # Alternative JSON format used by newer components
@@ -432,9 +433,7 @@ class KubernetesEventParser(BaseParser):
     supported_formats = ["kubernetes_event", "k8s_event"]
 
     # Pattern for kubectl get events output
-    KUBECTL_PATTERN = re.compile(
-        r'^(\S+)\s+(Normal|Warning)\s+(\w+)\s+(\S+)\s+(.*)$'
-    )
+    KUBECTL_PATTERN = re.compile(r"^(\S+)\s+(Normal|Warning)\s+(\w+)\s+(\S+)\s+(.*)$")
 
     LEVEL_MAP = {
         "Normal": LogLevel.INFO,

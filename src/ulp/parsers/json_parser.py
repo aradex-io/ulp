@@ -24,21 +24,22 @@ class JSONParser(BaseParser):
 
     # Common field names for timestamp
     TIMESTAMP_FIELDS = [
-        "timestamp", "time", "@timestamp", "ts", "datetime",
-        "created", "date", "logged_at", "log_time"
+        "timestamp",
+        "time",
+        "@timestamp",
+        "ts",
+        "datetime",
+        "created",
+        "date",
+        "logged_at",
+        "log_time",
     ]
 
     # Common field names for level
-    LEVEL_FIELDS = [
-        "level", "severity", "loglevel", "log_level", "lvl",
-        "levelname", "priority"
-    ]
+    LEVEL_FIELDS = ["level", "severity", "loglevel", "log_level", "lvl", "levelname", "priority"]
 
     # Common field names for message
-    MESSAGE_FIELDS = [
-        "message", "msg", "text", "log", "body",
-        "content", "event", "description"
-    ]
+    MESSAGE_FIELDS = ["message", "msg", "text", "log", "body", "content", "event", "description"]
 
     def parse_line(self, line: str) -> LogEntry:
         """Parse a single JSON log line."""
@@ -100,9 +101,7 @@ class JSONParser(BaseParser):
         entry.source = self._extract_source(data)
 
         # Store remaining fields as extra
-        known_fields = set(
-            self.TIMESTAMP_FIELDS + self.LEVEL_FIELDS + self.MESSAGE_FIELDS
-        )
+        known_fields = set(self.TIMESTAMP_FIELDS + self.LEVEL_FIELDS + self.MESSAGE_FIELDS)
         entry.extra = {k: v for k, v in data.items() if k not in known_fields}
 
         return entry
@@ -125,7 +124,10 @@ class JSONParser(BaseParser):
                 if isinstance(data, dict):
                     json_count += 1
                     # Check for common log fields
-                    if any(f in data for f in self.TIMESTAMP_FIELDS + self.LEVEL_FIELDS + self.MESSAGE_FIELDS):
+                    if any(
+                        f in data
+                        for f in self.TIMESTAMP_FIELDS + self.LEVEL_FIELDS + self.MESSAGE_FIELDS
+                    ):
                         has_log_fields += 1
             except json.JSONDecodeError:
                 pass
@@ -144,6 +146,7 @@ class JSONParser(BaseParser):
 
     def _extract_correlation(self, data: dict[str, Any]) -> CorrelationIds:
         """Extract correlation IDs from JSON data."""
+
         def get_field(*names: str) -> str | None:
             for name in names:
                 if name in data:
@@ -162,6 +165,7 @@ class JSONParser(BaseParser):
 
     def _extract_source(self, data: dict[str, Any]) -> LogSource:
         """Extract source information from JSON data."""
+
         def get_field(*names: str) -> str | None:
             for name in names:
                 if name in data:

@@ -38,7 +38,7 @@ class ParseLogsUseCase:
         source: LogSourcePort,
         parser_registry: ParserRegistry,
         format_detector: FormatDetectorPort,
-        normalizer: NormalizerPort | None = None
+        normalizer: NormalizerPort | None = None,
     ):
         """
         Initialize the use case.
@@ -54,11 +54,7 @@ class ParseLogsUseCase:
         self.format_detector = format_detector
         self.normalizer = normalizer
 
-    def execute(
-        self,
-        format_hint: str | None = None,
-        sample_size: int = 50
-    ) -> Iterator[LogEntry]:
+    def execute(self, format_hint: str | None = None, sample_size: int = 50) -> Iterator[LogEntry]:
         """
         Execute the parse logs use case.
 
@@ -138,16 +134,14 @@ class ParseLogsStreamingUseCase:
         self,
         source: LogSourcePort,
         parser_registry: ParserRegistry,
-        normalizer: NormalizerPort | None = None
+        normalizer: NormalizerPort | None = None,
     ):
         self.source = source
         self.parser_registry = parser_registry
         self.normalizer = normalizer
 
     def execute(
-        self,
-        format_name: str,
-        chunk_callback: Callable | None = None
+        self, format_name: str, chunk_callback: Callable | None = None
     ) -> Iterator[LogEntry]:
         """
         Execute streaming parse.
