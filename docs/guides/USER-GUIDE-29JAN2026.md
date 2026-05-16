@@ -28,18 +28,18 @@ Comprehensive guide to using Universal Log Parser (ULP) for log analysis and cor
 
 ```bash
 # Basic installation
-pip install ulp
+pip install universal-log-parser
 
 # With optional dependencies
-pip install ulp[geoip]      # GeoIP enrichment
-pip install ulp[benchmark]  # Benchmarking tools
-pip install ulp[all]        # Everything
+pip install universal-log-parser[geoip]      # GeoIP enrichment
+pip install universal-log-parser[benchmark]  # Benchmarking tools
+pip install universal-log-parser[all]        # Everything
 ```
 
 ### From Source
 
 ```bash
-git clone https://github.com/jeremylaratro/ulp.git
+git clone https://github.com/aradex-io/ulp.git
 cd ulp
 pip install -e .
 ```
@@ -48,7 +48,7 @@ pip install -e .
 
 ```bash
 ulp --version
-# Output: ulp, version 0.2.0
+# Output: ulp, version 0.2.1
 
 ulp formats
 # Shows all supported formats

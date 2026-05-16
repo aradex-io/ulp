@@ -1,9 +1,9 @@
 # Universal Log Parser (ULP)
 
-[![PyPI version](https://badge.fury.io/py/ulp.svg)](https://badge.fury.io/py/ulp)
-[![Python](https://img.shields.io/pypi/pyversions/ulp.svg)](https://pypi.org/project/ulp/)
+[![PyPI version](https://badge.fury.io/py/universal-log-parser.svg)](https://badge.fury.io/py/universal-log-parser)
+[![Python](https://img.shields.io/pypi/pyversions/universal-log-parser.svg)](https://pypi.org/project/universal-log-parser/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![CI](https://github.com/jeremylaratro/ulp/actions/workflows/ci.yml/badge.svg)](https://github.com/jeremylaratro/ulp/actions/workflows/ci.yml)
+[![CI](https://github.com/aradex-io/ulp/actions/workflows/ci.yml/badge.svg)](https://github.com/aradex-io/ulp/actions/workflows/ci.yml)
 
 A Python library and CLI tool to automatically detect, parse, and normalize logs from any format. Built for production workloads with streaming support for large files (1-10GB+) and cross-source log correlation.
 
@@ -20,20 +20,20 @@ A Python library and CLI tool to automatically detect, parse, and normalize logs
 ## Installation
 
 ```bash
-pip install ulp
+pip install universal-log-parser
 ```
 
 With optional dependencies:
 
 ```bash
 # For GeoIP enrichment
-pip install ulp[geoip]
+pip install universal-log-parser[geoip]
 
 # For benchmarking
-pip install ulp[benchmark]
+pip install universal-log-parser[benchmark]
 
 # Everything
-pip install ulp[all]
+pip install universal-log-parser[all]
 ```
 
 ## Quick Start

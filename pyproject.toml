@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "ulp"
+name = "universal-log-parser"
 version = "0.2.1"
 description = "Universal Log Parser - Automatically detect, parse, and normalize logs from any format. Streaming support for 1-10GB+ files and cross-source log correlation."
 readme = "README.md"
@@ -72,10 +72,10 @@ all = [
 ulp = "ulp.cli.main:cli"
 
 [project.urls]
-Homepage = "https://github.com/jeremylaratro/ulp"
-Documentation = "https://github.com/jeremylaratro/ulp#readme"
-Issues = "https://github.com/jeremylaratro/ulp/issues"
-Changelog = "https://github.com/jeremylaratro/ulp/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/aradex-io/ulp"
+Documentation = "https://github.com/aradex-io/ulp#readme"
+Issues = "https://github.com/aradex-io/ulp/issues"
+Changelog = "https://github.com/aradex-io/ulp/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ulp"]

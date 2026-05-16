@@ -5,6 +5,7 @@ Tests for CLI interface.
 import pytest
 from click.testing import CliRunner
 
+from ulp import __version__
 from ulp.cli.main import cli
 
 
@@ -21,7 +22,7 @@ class TestCLI:
         """Test --version flag."""
         result = runner.invoke(cli, ["--version"])
         assert result.exit_code == 0
-        assert "0.2.0" in result.output
+        assert __version__ in result.output
 
     def test_cli_help(self, runner):
         """Test --help flag."""

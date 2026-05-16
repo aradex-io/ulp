@@ -7,14 +7,14 @@ Get started with Universal Log Parser in 5 minutes.
 ## Installation
 
 ```bash
-pip install ulp
+pip install universal-log-parser
 ```
 
 Verify:
 
 ```bash
 ulp --version
-# Output: ulp, version 0.2.0
+# Output: ulp, version 0.2.1
 ```
 
 ---

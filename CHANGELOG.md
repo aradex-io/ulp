@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.1] - 2026-05-11
 
 ### Fixed
+- PyPI distribution metadata now targets `universal-log-parser`, matching the trusted publisher configuration and avoiding the unrelated `ulp` project name.
 - Critical correctness and security fixes from phased application review:
   - mmap streaming path: empty/rotated file crash, byte-by-byte performance, line-length cap bypass
   - `LogEntry.from_dict` no longer raises `KeyError` on unfamiliar level names

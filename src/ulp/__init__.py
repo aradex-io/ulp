@@ -25,7 +25,7 @@ Usage:
     result = correlate(["app.log", "nginx.log"], strategy="request_id")
 """
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 from ulp.core.models import (
     LogEntry,

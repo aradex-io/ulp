@@ -298,12 +298,12 @@ result = correlate(["app.log", "web.log"], strategy="request_id")
 
 ```bash
 # Basic
-pip install ulp
+pip install universal-log-parser
 
 # With optional dependencies
-pip install ulp[geoip]      # GeoIP enrichment
-pip install ulp[benchmark]  # Benchmarking
-pip install ulp[all]        # Everything
+pip install universal-log-parser[geoip]      # GeoIP enrichment
+pip install universal-log-parser[benchmark]  # Benchmarking
+pip install universal-log-parser[all]        # Everything
 ```
 
 ---
